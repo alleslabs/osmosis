@@ -3,7 +3,7 @@ module github.com/osmosis-labs/osmosis/osmoutils
 go 1.20
 
 require (
-	github.com/cosmos/cosmos-sdk v0.47.2
+	github.com/cosmos/cosmos-sdk v0.47.3
 	github.com/cosmos/iavl v0.19.5
 	github.com/cosmos/ibc-go/v4 v4.3.0
 	github.com/gogo/protobuf v1.3.3
