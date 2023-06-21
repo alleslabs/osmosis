@@ -429,6 +429,8 @@ func (k Keeper) Distribute(ctx sdk.Context, gauges []types.Gauge) (sdk.Coins, er
 	locksByDenomCache := make(map[string][]lockuptypes.PeriodLock)
 	totalDistributedCoins := sdk.NewCoins()
 
+	fmt.Println("Distributing from gauges: ", gauges)
+
 	for _, gauge := range gauges {
 		var gaugeDistributedCoins sdk.Coins
 		filteredLocks := k.getDistributeToBaseLocks(ctx, gauge, locksByDenomCache)
