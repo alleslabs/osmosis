@@ -22,6 +22,7 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -51,9 +52,15 @@ type KeeperTestHelper struct {
 }
 
 var (
-	SecondaryDenom  = "uion"
-	SecondaryAmount = sdk.NewInt(100000000)
+	SecondaryDenom       = "uion"
+	SecondaryAmount      = sdk.NewInt(100000000)
+	baseTestAccts        = []sdk.AccAddress{}
+	defaultTestStartTime = time.Now().UTC()
 )
+
+func init() {
+	baseTestAccts = CreateRandomAccounts(3)
+}
 
 // Setup sets up basic environment for suite (App, Ctx, and test accounts)
 func (s *KeeperTestHelper) Setup() {
@@ -74,14 +81,22 @@ func (s *KeeperTestHelper) SetupWithLevelDb() func() {
 }
 
 func (s *KeeperTestHelper) setupGeneral() {
+<<<<<<< HEAD
 	s.Ctx = s.App.BaseApp.NewContext(false, tmtypes.Header{Height: 1, ChainID: "osmosis-1", Time: time.Now().UTC()})
+=======
+	s.Ctx = s.App.BaseApp.NewContext(false, tmtypes.Header{Height: 1, ChainID: "osmosis-1", Time: defaultTestStartTime})
+	if s.withCaching {
+		s.Ctx, _ = s.Ctx.CacheContext()
+	}
+>>>>>>> 1b317e49 (Driveby apptesting changes I made, while looking at other testing things (#5617))
 	s.QueryHelper = &baseapp.QueryServiceTestHelper{
 		GRPCQueryRouter: s.App.GRPCQueryRouter(),
 		Ctx:             s.Ctx,
 	}
 
 	s.SetEpochStartTime()
-	s.TestAccs = CreateRandomAccounts(3)
+	s.TestAccs = []sdk.AccAddress{}
+	s.TestAccs = append(s.TestAccs, baseTestAccts...)
 	s.SetupConcentratedLiquidityDenomsAndPoolCreation()
 }
 
@@ -157,8 +172,8 @@ func (s *KeeperTestHelper) SetupValidator(bondStatus stakingtypes.BondStatus) sd
 	s.FundAcc(sdk.AccAddress(valAddr), selfBond)
 
 	stakingHandler := staking.NewHandler(*s.App.StakingKeeper)
-	stakingCoin := sdk.NewCoin(sdk.DefaultBondDenom, selfBond[0].Amount)
-	ZeroCommission := stakingtypes.NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
+	stakingCoin := sdk.Coin{Denom: sdk.DefaultBondDenom, Amount: selfBond[0].Amount}
+	ZeroCommission := stakingtypes.NewCommissionRates(zeroDec, zeroDec, zeroDec)
 	msg, err := stakingtypes.NewMsgCreateValidator(valAddr, valPub, stakingCoin, stakingtypes.Description{}, ZeroCommission, sdk.OneInt())
 	s.Require().NoError(err)
 	res, err := stakingHandler(s.Ctx, msg)
@@ -454,29 +469,30 @@ func TestMessageAuthzSerialization(t *testing.T, msg sdk.Msg) {
 		mockMsgExec   authz.MsgExec
 	)
 
+	// mutates mockMsg
+	testSerDeser := func(msg proto.Message, mockMsg proto.Message) {
+		msgGrantBytes := json.RawMessage(sdk.MustSortJSON(authzcodec.ModuleCdc.MustMarshalJSON(msg)))
+		err := authzcodec.ModuleCdc.UnmarshalJSON(msgGrantBytes, mockMsg)
+		require.NoError(t, err)
+	}
+
 	// Authz: Grant Msg
 	typeURL := sdk.MsgTypeURL(msg)
 	grant, err := authz.NewGrant(someDate, authz.NewGenericAuthorization(typeURL), someDate.Add(time.Hour))
 	require.NoError(t, err)
 
 	msgGrant := authz.MsgGrant{Granter: mockGranter, Grantee: mockGrantee, Grant: grant}
-	msgGrantBytes := json.RawMessage(sdk.MustSortJSON(authzcodec.ModuleCdc.MustMarshalJSON(&msgGrant)))
-	err = authzcodec.ModuleCdc.UnmarshalJSON(msgGrantBytes, &mockMsgGrant)
-	require.NoError(t, err)
+	testSerDeser(&msgGrant, &mockMsgGrant)
 
 	// Authz: Revoke Msg
 	msgRevoke := authz.MsgRevoke{Granter: mockGranter, Grantee: mockGrantee, MsgTypeUrl: typeURL}
-	msgRevokeByte := json.RawMessage(sdk.MustSortJSON(authzcodec.ModuleCdc.MustMarshalJSON(&msgRevoke)))
-	err = authzcodec.ModuleCdc.UnmarshalJSON(msgRevokeByte, &mockMsgRevoke)
-	require.NoError(t, err)
+	testSerDeser(&msgRevoke, &mockMsgRevoke)
 
 	// Authz: Exec Msg
 	msgAny, err := cdctypes.NewAnyWithValue(msg)
 	require.NoError(t, err)
 	msgExec := authz.MsgExec{Grantee: mockGrantee, Msgs: []*cdctypes.Any{msgAny}}
-	execMsgByte := json.RawMessage(sdk.MustSortJSON(authzcodec.ModuleCdc.MustMarshalJSON(&msgExec)))
-	err = authzcodec.ModuleCdc.UnmarshalJSON(execMsgByte, &mockMsgExec)
-	require.NoError(t, err)
+	testSerDeser(&msgExec, &mockMsgExec)
 	require.Equal(t, msgExec.Msgs[0].Value, mockMsgExec.Msgs[0].Value)
 }
 
