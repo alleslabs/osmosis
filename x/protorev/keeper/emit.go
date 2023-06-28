@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/tendermint/tendermint/crypto/tmhash"
 
 	"github.com/osmosis-labs/osmosis/v16/x/protorev/types"

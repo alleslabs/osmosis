@@ -1,11 +1,10 @@
 package client
 
 import (
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 
 	"github.com/osmosis-labs/osmosis/v16/x/poolmanager"
 	"github.com/osmosis-labs/osmosis/v16/x/poolmanager/client/queryproto"

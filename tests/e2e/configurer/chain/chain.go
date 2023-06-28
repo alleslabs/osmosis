@@ -10,21 +10,17 @@ import (
 	"testing"
 	"time"
 
-	paramsutils "github.com/cosmos/cosmos-sdk/x/params/client/utils"
-
-	ibcratelimittypes "github.com/osmosis-labs/osmosis/v16/x/ibc-rate-limit/types"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	paramsutils "github.com/cosmos/cosmos-sdk/x/params/client/utils"
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 
-	"github.com/osmosis-labs/osmosis/v16/tests/e2e/util"
-
 	appparams "github.com/osmosis-labs/osmosis/v16/app/params"
 	"github.com/osmosis-labs/osmosis/v16/tests/e2e/configurer/config"
-
 	"github.com/osmosis-labs/osmosis/v16/tests/e2e/containers"
 	"github.com/osmosis-labs/osmosis/v16/tests/e2e/initialization"
+	"github.com/osmosis-labs/osmosis/v16/tests/e2e/util"
+	ibcratelimittypes "github.com/osmosis-labs/osmosis/v16/x/ibc-rate-limit/types"
 )
 
 type Config struct {

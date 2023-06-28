@@ -5,10 +5,10 @@ import (
 	"embed"
 	"fmt"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/cosmos/cosmos-sdk/types/simulation"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 //go:embed schema.sql

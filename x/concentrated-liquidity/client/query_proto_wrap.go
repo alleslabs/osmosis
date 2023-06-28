@@ -1,10 +1,9 @@
 package client
 
 import (
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	cl "github.com/osmosis-labs/osmosis/v16/x/concentrated-liquidity"
 	clquery "github.com/osmosis-labs/osmosis/v16/x/concentrated-liquidity/client/queryproto"

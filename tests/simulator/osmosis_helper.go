@@ -1,15 +1,13 @@
 package simapp
 
 import (
-	"github.com/tendermint/tendermint/libs/log"
-
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/types/simulation"
+	"github.com/tendermint/tendermint/libs/log"
 	db "github.com/tendermint/tm-db"
 
-	simexec "github.com/osmosis-labs/osmosis/v16/simulation/executor"
-
 	"github.com/osmosis-labs/osmosis/v16/app"
+	simexec "github.com/osmosis-labs/osmosis/v16/simulation/executor"
 	"github.com/osmosis-labs/osmosis/v16/simulation/simtypes"
 )
 

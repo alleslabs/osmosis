@@ -9,15 +9,14 @@ linters:
   enable:
     - asciicheck
     - bidichk
-    - depguard
     - durationcheck
     - errcheck
     - errname
     - exportloopref
     - forcetypeassert
+    - gci
     - goconst
     - gofmt
-    - goimports
     - goheader
     - gomodguard
     - goprintffuncname
@@ -41,19 +40,29 @@ linters:
     - unused
     - whitespace
 
+linters-settings:
+  gci:
+    custom-order: true
+    sections:
+      - standard # Standard section: captures all standard packages.
+      - default # Default section: contains all imports that could not be matched to another section type.
+      - blank # blank imports
+      - dot # dot imports
+      - prefix(github.com/osmosis-labs/osmosis)
+
 issues:
   exclude-rules:
     - linters:
         - staticcheck
-      text: "SA1024: cutset contains duplicate characters" # proved to not provide much value, only false positives.
+      text: 'SA1024: cutset contains duplicate characters' # proved to not provide much value, only false positives.
     - linters:
         - staticcheck
-      text: "SA9004: only the first constant in this group has an explicit type" # explicitly recommended in go syntax
+      text: 'SA9004: only the first constant in this group has an explicit type' # explicitly recommended in go syntax
     - linters:
         - stylecheck
-      text: "ST1003:" # requires identifiers with "id" to be "ID".
+      text: 'ST1003:' # requires identifiers with "id" to be "ID".
     - linters:
         - stylecheck
-      text: "ST1005:" # punctuation in error messages
+      text: 'ST1005:' # punctuation in error messages
   max-issues-per-linter: 10000
   max-same-issues: 10000

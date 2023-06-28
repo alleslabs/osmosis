@@ -12,7 +12,6 @@ import (
 	"github.com/osmosis-labs/osmosis/v16/x/cosmwasmpool/cosmwasm/msg"
 	"github.com/osmosis-labs/osmosis/v16/x/cosmwasmpool/cosmwasm/msg/transmuter"
 	"github.com/osmosis-labs/osmosis/v16/x/cosmwasmpool/model"
-
 	cosmwasmpooltypes "github.com/osmosis-labs/osmosis/v16/x/cosmwasmpool/types"
 )
 

@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/osmosis-labs/osmosis/osmoutils/osmocli"
-
 	"github.com/osmosis-labs/osmosis/v16/x/protorev/types"
 )
 

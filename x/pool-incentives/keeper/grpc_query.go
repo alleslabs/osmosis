@@ -4,11 +4,10 @@ import (
 	"context"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	incentivetypes "github.com/osmosis-labs/osmosis/v16/x/incentives/types"
 	"github.com/osmosis-labs/osmosis/v16/x/pool-incentives/types"

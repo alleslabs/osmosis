@@ -7,6 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/tx"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	govcli "github.com/cosmos/cosmos-sdk/x/gov/client/cli"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 
@@ -16,12 +21,6 @@ import (
 	"github.com/osmosis-labs/osmosis/v16/x/gamm/types"
 	gammmigration "github.com/osmosis-labs/osmosis/v16/x/gamm/types/migration"
 	poolmanagertypes "github.com/osmosis-labs/osmosis/v16/x/poolmanager/types"
-
-	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/client/tx"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	govcli "github.com/cosmos/cosmos-sdk/x/gov/client/cli"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
 
 func NewTxCmd() *cobra.Command {

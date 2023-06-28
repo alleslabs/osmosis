@@ -2,6 +2,7 @@ package types
 
 import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+
 	gammmigration "github.com/osmosis-labs/osmosis/v16/x/gamm/types/migration"
 )
 

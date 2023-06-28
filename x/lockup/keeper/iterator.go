@@ -3,12 +3,11 @@ package keeper
 import (
 	"time"
 
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	db "github.com/tendermint/tm-db"
 
 	"github.com/osmosis-labs/osmosis/v16/x/lockup/types"
-
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func unlockingPrefix(isUnlocking bool) []byte {

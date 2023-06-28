@@ -31,10 +31,8 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/osmosis-labs/osmosis/v16/app"
-
 	"github.com/osmosis-labs/osmosis/v16/x/gamm/pool-models/balancer"
 	gammtypes "github.com/osmosis-labs/osmosis/v16/x/gamm/types"
-
 	lockupkeeper "github.com/osmosis-labs/osmosis/v16/x/lockup/keeper"
 	lockuptypes "github.com/osmosis-labs/osmosis/v16/x/lockup/types"
 	minttypes "github.com/osmosis-labs/osmosis/v16/x/mint/types"

@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	db "github.com/tendermint/tm-db"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	db "github.com/tendermint/tm-db"
 
 	"github.com/osmosis-labs/osmosis/v16/x/incentives/types"
 	lockuptypes "github.com/osmosis-labs/osmosis/v16/x/lockup/types"

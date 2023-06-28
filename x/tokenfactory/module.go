@@ -24,10 +24,9 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 
 	"github.com/osmosis-labs/osmosis/v16/simulation/simtypes"
-	simulation "github.com/osmosis-labs/osmosis/v16/x/tokenfactory/simulation"
-
 	"github.com/osmosis-labs/osmosis/v16/x/tokenfactory/client/cli"
 	"github.com/osmosis-labs/osmosis/v16/x/tokenfactory/keeper"
+	simulation "github.com/osmosis-labs/osmosis/v16/x/tokenfactory/simulation"
 	"github.com/osmosis-labs/osmosis/v16/x/tokenfactory/types"
 )
 
