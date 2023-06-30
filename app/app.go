@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 
+
 	"github.com/CosmWasm/wasmd/x/wasm"
 	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
@@ -456,7 +457,6 @@ func (app *OsmosisApp) customPreUpgradeHandler(upgradeInfo store.UpgradeInfo) {
 	switch upgradeInfo.Name {
 	case "v16":
 		// v16 upgrade handler
-		fmt.Println("Running v16 pre-upgrade handler")
 		// remove the wasm cache for cosmwasm cherry https://github.com/CosmWasm/advisories/blob/main/CWAs/CWA-2023-002.md#wasm-module-cache-issue
 		err := os.RemoveAll(app.homePath + "/wasm/wasm/cache")
 		if err != nil {
