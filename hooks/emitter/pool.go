@@ -728,9 +728,9 @@ func (pa *PoolAdapter) flushUpdatePoolStats(ctx sdk.Context, kafka *[]common.Mes
 				"id":        poolId,
 				"liquidity": pool.GetTotalPoolLiquidity(ctx),
 			})
-		}
 		default:
 			panic("cannot handle pool type")
+		}
 	}
 	pa.poolInBlock = make(map[uint64]bool)
 }
