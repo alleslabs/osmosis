@@ -372,7 +372,7 @@ func (pa *PoolAdapter) AfterEndBlock(
 					"exit_fee":             "0",
 					"future_pool_governor": "",
 					"address":              concentratedPool.GetAddress().String(),
-					"total_shares":         sdk.Coins{},
+					"total_shares":         sdk.Coin{},
 					"spread_factor":        concentratedPool.GetSpreadFactor(ctx),
 					"tick_spacing":         concentratedPool.GetTickSpacing(),
 				})
@@ -498,20 +498,22 @@ func (pa *PoolAdapter) handleCreatePoolEvents(ctx sdk.Context, txHash []byte, se
 					"total_shares":              pool.TotalShares,
 				})
 			case *concentratedpool.Pool:
-				poolLiquidity, _ := pa.clpKeeper.GetTotalPoolLiquidity(ctx, poolId)
+				token0 := pool.GetToken0()
+				token1 := pool.GetToken1()
+				poolLiquidity := sdk.NewCoins(sdk.NewCoin(token0, sdk.ZeroInt()), sdk.NewCoin(token1, sdk.ZeroInt()))
 				common.AppendMessage(kafka, "NEW_OSMOSIS_POOL", common.JsDict{
 					"id":                   poolId,
 					"liquidity":            poolLiquidity,
 					"type":                 pool.GetType(),
 					"creator":              sender.String(),
-					"create_tx_id":         txHash,
+					"create_tx":            txHash,
 					"is_superfluid":        false,
 					"is_supported":         false,
 					"swap_fee":             pool.GetSpreadFactor(ctx),
 					"exit_fee":             "0",
 					"future_pool_governor": "",
 					"address":              pool.GetAddress().String(),
-					"total_shares":         sdk.Coins{},
+					"total_shares":         sdk.Coin{},
 					"spread_factor":        pool.GetSpreadFactor(ctx),
 					"tick_spacing":         pool.GetTickSpacing(),
 				})
@@ -521,14 +523,14 @@ func (pa *PoolAdapter) handleCreatePoolEvents(ctx sdk.Context, txHash []byte, se
 					"liquidity":            pool.GetTotalPoolLiquidity(ctx),
 					"type":                 pool.GetType(),
 					"creator":              sender,
-					"create_tx_id":         txHash,
+					"create_tx":            txHash,
 					"is_superfluid":        false,
 					"is_supported":         false,
 					"swap_fee":             pool.GetSpreadFactor(ctx),
 					"exit_fee":             "0",
 					"future_pool_governor": "",
 					"address":              pool.GetAddress(),
-					"total_shares":         sdk.Coins{},
+					"total_shares":         sdk.Coin{},
 					"contract_address":     pool.GetContractAddress(),
 				})
 			default:
