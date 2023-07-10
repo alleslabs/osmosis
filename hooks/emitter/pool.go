@@ -451,7 +451,7 @@ func (pa *PoolAdapter) handleCreatePoolEvents(ctx sdk.Context, txHash []byte, se
 			newPool[common.Atoui(rawId)] = true
 		}
 		for poolId := range newPool {
-			poolInfo, _ := pa.gammKeeper.GetPool(ctx, poolId)
+			poolInfo, _ := pa.poolmanagerKeeper.GetPool(ctx, poolId)
 			switch pool := poolInfo.(type) {
 			case *balancer.Pool:
 				weights := make([]common.JsDict, 0)
@@ -695,7 +695,7 @@ func (pa *PoolAdapter) handleMsgBeginUnlockingAll(ctx sdk.Context, evMap common.
 // flushUpdatePoolStats appends updated Osmosis pools stats into the provided Kafka messages array.
 func (pa *PoolAdapter) flushUpdatePoolStats(ctx sdk.Context, kafka *[]common.Message) {
 	for poolId := range pa.poolInBlock {
-		poolInfo, _ := pa.gammKeeper.GetPool(ctx, poolId)
+		poolInfo, _ := pa.poolmanagerKeeper.GetPool(ctx, poolId)
 		switch pool := poolInfo.(type) {
 		case *balancer.Pool:
 			weights := make([]common.JsDict, 0)
@@ -729,6 +729,8 @@ func (pa *PoolAdapter) flushUpdatePoolStats(ctx sdk.Context, kafka *[]common.Mes
 				"liquidity": pool.GetTotalPoolLiquidity(ctx),
 			})
 		}
+		default:
+			panic("cannot handle pool type")
 	}
 	pa.poolInBlock = make(map[uint64]bool)
 }
