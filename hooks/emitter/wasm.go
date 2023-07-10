@@ -194,6 +194,7 @@ func (wa *WasmAdapter) HandleMsgEvents(ctx sdk.Context, txHash []byte, msg sdk.M
 	wa.updateNewCodeEvents(ctx, txHash, msg, evMap, kafka)
 	wa.updateNewContractEvents(ctx, txHash, evMap, kafka)
 	wa.updateContractExecuteEvents(evMap)
+	wa.updateContractSudoEvents(evMap)
 	wa.updateContractProposalEvents(ctx, evMap, kafka)
 	wa.updateMigrateContractEvents(ctx, txHash, msg, evMap, kafka)
 	switch msg := msg.(type) {
@@ -532,6 +533,13 @@ func (wa *WasmAdapter) updateMigrateContractEvents(ctx sdk.Context, txHash []byt
 // updateContractExecuteEvents handles contract Execute events that might be emitted from the transaction.
 func (wa *WasmAdapter) updateContractExecuteEvents(evMap common.EvMap) {
 	for _, contract := range evMap[types.EventTypeExecute+"."+types.AttributeKeyContractAddr] {
+		wa.contractTxs[contract] = false
+	}
+}
+
+// updateContractSudoEvents handles contract Sudo events that might be emitted from the transaction.
+func (wa *WasmAdapter) updateContractSudoEvents(evMap common.EvMap) {
+	for _, contract := range evMap[types.EventTypeSudo+"."+types.AttributeKeyContractAddr] {
 		wa.contractTxs[contract] = false
 	}
 }
