@@ -8,6 +8,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 
+	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
+	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -16,7 +18,9 @@ import (
 	clpkeeper "github.com/osmosis-labs/osmosis/v16/x/concentrated-liquidity"
 	concentratedpool "github.com/osmosis-labs/osmosis/v16/x/concentrated-liquidity/model"
 	clptypes "github.com/osmosis-labs/osmosis/v16/x/concentrated-liquidity/types"
+	cosmwasmpoolkeeper "github.com/osmosis-labs/osmosis/v16/x/cosmwasmpool"
 	cosmwasmpool "github.com/osmosis-labs/osmosis/v16/x/cosmwasmpool/model"
+	cosmwasmpooltypes "github.com/osmosis-labs/osmosis/v16/x/cosmwasmpool/types"
 	gammkeeper "github.com/osmosis-labs/osmosis/v16/x/gamm/keeper"
 	"github.com/osmosis-labs/osmosis/v16/x/gamm/pool-models/balancer"
 	"github.com/osmosis-labs/osmosis/v16/x/gamm/pool-models/stableswap"
@@ -48,40 +52,46 @@ type PoolAdapter struct {
 	onlyPoolMsgTx bool
 
 	// keepers
-	accountKeeper     *authkeeper.AccountKeeper
-	clpKeeper         *clpkeeper.Keeper
-	gammKeeper        *gammkeeper.Keeper
-	govKeeper         *govkeeper.Keeper
-	lockupKeeper      *lockupkeeper.Keeper
-	poolmanagerKeeper *poolmanagerkeeper.Keeper
+	accountKeeper      *authkeeper.AccountKeeper
+	clpKeeper          *clpkeeper.Keeper
+	cosmwasmpoolKeeper *cosmwasmpoolkeeper.Keeper
+	gammKeeper         *gammkeeper.Keeper
+	govKeeper          *govkeeper.Keeper
+	lockupKeeper       *lockupkeeper.Keeper
+	poolmanagerKeeper  *poolmanagerkeeper.Keeper
+	wasmKeeper         *wasmkeeper.Keeper
 }
 
 // NewPoolAdapter creates a new PoolAdapter instance that will be added to the emitter hook adapters.
 func NewPoolAdapter(
 	accountKeeper *authkeeper.AccountKeeper,
 	clpKeeper *clpkeeper.Keeper,
+	cosmwasmpoolKeeper *cosmwasmpoolkeeper.Keeper,
 	gammKeeper *gammkeeper.Keeper,
 	govKeeper *govkeeper.Keeper,
 	lockupKeeper *lockupkeeper.Keeper,
 	poolmanagerKeeper *poolmanagerkeeper.Keeper,
+	wasmKeeper *wasmkeeper.Keeper,
 ) *PoolAdapter {
 	return &PoolAdapter{
-		isSwapTx:          false,
-		isLpTx:            false,
-		isBondTx:          false,
-		isSuperfluidTx:    false,
-		isClp:             false,
-		isCollect:         false,
-		isMigrate:         false,
-		poolTxs:           make(map[uint64]bool),
-		poolInBlock:       make(map[uint64]bool),
-		onlyPoolMsgTx:     true,
-		accountKeeper:     accountKeeper,
-		clpKeeper:         clpKeeper,
-		gammKeeper:        gammKeeper,
-		govKeeper:         govKeeper,
-		lockupKeeper:      lockupKeeper,
-		poolmanagerKeeper: poolmanagerKeeper,
+		isSwapTx:           false,
+		isLpTx:             false,
+		isBondTx:           false,
+		isSuperfluidTx:     false,
+		isClp:              false,
+		isCollect:          false,
+		isMigrate:          false,
+		poolTxs:            make(map[uint64]bool),
+		poolInBlock:        make(map[uint64]bool),
+		onlyPoolMsgTx:      true,
+		accountKeeper:      accountKeeper,
+		clpKeeper:          clpKeeper,
+		cosmwasmpoolKeeper: cosmwasmpoolKeeper,
+		gammKeeper:         gammKeeper,
+		govKeeper:          govKeeper,
+		lockupKeeper:       lockupKeeper,
+		poolmanagerKeeper:  poolmanagerKeeper,
+		wasmKeeper:         wasmKeeper,
 	}
 }
 
@@ -245,6 +255,9 @@ func (pa *PoolAdapter) CheckMsg(ctx sdk.Context, msg sdk.Msg) {
 	case *clptypes.MsgCreatePosition:
 		pa.isClp = true
 		pa.poolTxs[msg.PoolId] = true
+
+	// This case works for some transaction (failed tx or partially withdraw) since the position would be deleted if
+	// the whole position is withdrawn.
 	case *clptypes.MsgWithdrawPosition:
 		if position, err := pa.clpKeeper.GetPosition(ctx, msg.PositionId); err == nil {
 			pa.isClp = true
@@ -288,6 +301,13 @@ func (pa *PoolAdapter) HandleMsgEvents(
 	switch msg := msg.(type) {
 	case *lockuptypes.MsgBeginUnlockingAll:
 		pa.handleMsgBeginUnlockingAll(ctx, evMap)
+	case *clptypes.MsgWithdrawPosition:
+		if poolIds, ok := evMap[clptypes.TypeEvtWithdrawPosition+"."+clptypes.AttributeKeyPoolId]; ok {
+			pa.isClp = true
+			for _, poolId := range poolIds {
+				pa.poolTxs[common.Atoui(poolId)] = true
+			}
+		}
 	default:
 		if !pa.onlyPoolMsgTx {
 			pa.handleCreatePoolEvents(ctx, txHash, msg.GetSigners()[0], evMap, kafka)
@@ -383,6 +403,70 @@ func (pa *PoolAdapter) AfterEndBlock(
 						"tick_spacing": record.NewTickSpacing,
 					})
 				}
+			case *cosmwasmpooltypes.UploadCosmWasmPoolCodeAndWhiteListProposal:
+				// TODO: refactor this logic when Osmosis unfork Cosmos SDK
+				codeId := pa.wasmKeeper.PeekAutoIncrementID(ctx, wasmtypes.KeyLastCodeID) - 1
+				codeInfo := pa.wasmKeeper.GetCodeInfo(ctx, codeId)
+				if codeInfo == nil {
+					break
+				}
+				addresses := make([]string, 0)
+				switch codeInfo.InstantiateConfig.Permission {
+				case wasmtypes.AccessTypeOnlyAddress:
+					addresses = []string{codeInfo.InstantiateConfig.Address}
+				case wasmtypes.AccessTypeAnyOfAddresses:
+					addresses = codeInfo.InstantiateConfig.Addresses
+				default:
+					break
+				}
+
+				common.AppendMessage(kafka, "NEW_CODE", common.JsDict{
+					"id":                       codeId,
+					"uploader":                 codeInfo.Creator,
+					"contract_instantiated":    0,
+					"access_config_permission": codeInfo.InstantiateConfig.Permission.String(),
+					"access_config_addresses":  addresses,
+				})
+				common.AppendMessage(kafka, "NEW_CODE_PROPOSAL", common.JsDict{
+					"code_id":         codeId,
+					"proposal_id":     proposalId,
+					"resolved_height": ctx.BlockHeight(),
+				})
+			case *cosmwasmpooltypes.MigratePoolContractsProposal:
+				var newCodeId uint64
+				if len(content.WASMByteCode) > 0 {
+					newCodeId = pa.wasmKeeper.PeekAutoIncrementID(ctx, wasmtypes.KeyLastCodeID) - 1
+				} else {
+					newCodeId = content.NewCodeId
+				}
+
+				for _, poolId := range content.PoolIds {
+					contractAddress, _, err := pa.cosmwasmpoolKeeper.GetCodeIdByPoolId(ctx, poolId)
+					if err != nil {
+						panic(err)
+					}
+					pa.updateContractVersion(ctx, contractAddress, kafka)
+					common.AppendMessage(kafka, "UPDATE_CONTRACT_CODE_ID", common.JsDict{
+						"contract": contractAddress.String(),
+						"code_id":  newCodeId,
+					})
+					common.AppendMessage(kafka, "UPDATE_CONTRACT_PROPOSAL", common.JsDict{
+						"contract_address": contractAddress.String(),
+						"proposal_id":      proposalId,
+						"resolved_height":  ctx.BlockHeight(),
+					})
+					common.AppendMessage(kafka, "NEW_CONTRACT_HISTORY", common.JsDict{
+						"contract_address": contractAddress.String(),
+						"sender":           contractAddress.String(),
+						"code_id":          newCodeId,
+						"block_height":     ctx.BlockHeight(),
+						"remark": common.JsDict{
+							"type":      "governance",
+							"operation": wasmtypes.ContractCodeHistoryOperationTypeMigrate.String(),
+							"value":     proposalId,
+						},
+					})
+				}
 			}
 		}
 	}
@@ -441,6 +525,22 @@ func (pa *PoolAdapter) getPoolIdsFromLockIds(ctx sdk.Context, lockIds []string) 
 	}
 
 	return result
+}
+
+// updateContractVersion updates CW2 info of a contract using the query result.
+func (pa *PoolAdapter) updateContractVersion(ctx sdk.Context, contractAddress sdk.AccAddress, kafka *[]common.Message) {
+	contractInfo := pa.wasmKeeper.GetContractInfo(ctx, contractAddress)
+	rawContractVersion := pa.wasmKeeper.QueryRaw(ctx, contractAddress, []byte("contract_info"))
+	var contractVersion ContractVersion
+	err := json.Unmarshal(rawContractVersion, &contractVersion)
+	if err != nil {
+		return
+	}
+	common.AppendMessage(kafka, "UPDATE_CW2_INFO", common.JsDict{
+		"code_id":      contractInfo.CodeID,
+		"cw2_contract": contractVersion.Contract,
+		"cw2_version":  contractVersion.Version,
+	})
 }
 
 // handleCreatePoolEvents handles PoolCreated events and processes new pools in the current transaction.

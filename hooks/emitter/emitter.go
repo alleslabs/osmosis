@@ -51,7 +51,7 @@ func NewHook(
 			NewIBCAdapter(),
 			NewGovAdapter(keeper.GovKeeper),
 			NewWasmAdapter(keeper.WasmKeeper, keeper.GovKeeper),
-			NewPoolAdapter(keeper.AccountKeeper, keeper.ConcentratedLiquidityKeeper, keeper.GAMMKeeper, keeper.GovKeeper, keeper.LockupKeeper, keeper.PoolManagerKeeper),
+			NewPoolAdapter(keeper.AccountKeeper, keeper.ConcentratedLiquidityKeeper, keeper.CosmwasmPoolKeeper, keeper.GAMMKeeper, keeper.GovKeeper, keeper.LockupKeeper, keeper.PoolManagerKeeper, keeper.WasmKeeper),
 			NewProtorevAdapter(keeper.ProtoRevKeeper),
 		},
 		accVerifiers: []AccountVerifier{
