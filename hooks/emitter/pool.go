@@ -238,9 +238,9 @@ func (pa *PoolAdapter) CheckMsg(ctx sdk.Context, msg sdk.Msg) {
 		pa.isSuperfluidTx = true
 		pa.poolTxs[msg.PoolId] = true
 	case *superfluidtypes.MsgUnlockAndMigrateSharesToFullRangeConcentratedPosition:
-		if poolId, found := pa.getPoolIdFromLockId(ctx, uint64(msg.LockId)); found {
+		if poolId, found := getPoolIdFromDenom(msg.SharesToMigrate.GetDenom()); found {
 			pa.isMigrate = true
-			pa.poolTxs[poolId] = true
+			pa.poolTxs[common.Atoui(poolId)] = true
 		}
 	case *superfluidtypes.MsgAddToConcentratedLiquiditySuperfluidPosition:
 		if position, err := pa.clpKeeper.GetPosition(ctx, msg.PositionId); err == nil {
@@ -304,6 +304,14 @@ func (pa *PoolAdapter) HandleMsgEvents(
 	case *clptypes.MsgWithdrawPosition:
 		if poolIds, ok := evMap[clptypes.TypeEvtWithdrawPosition+"."+clptypes.AttributeKeyPoolId]; ok {
 			pa.isClp = true
+			for _, poolId := range poolIds {
+				pa.poolTxs[common.Atoui(poolId)] = true
+			}
+		}
+	case *superfluidtypes.MsgUnlockAndMigrateSharesToFullRangeConcentratedPosition:
+		// Pool id leaving is already handled in the CheckMsg via lock id, so we only need to handle pool id entering here
+		if poolIds, ok := evMap[superfluidtypes.TypeEvtUnlockAndMigrateShares+"."+superfluidtypes.AttributeKeyPoolIdEntering]; ok {
+			pa.isMigrate = true
 			for _, poolId := range poolIds {
 				pa.poolTxs[common.Atoui(poolId)] = true
 			}
