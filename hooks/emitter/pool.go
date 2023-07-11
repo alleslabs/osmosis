@@ -475,10 +475,14 @@ func (pa *PoolAdapter) AfterEndBlock(
 
 // getPoolIdFromDenom returns pool id if the provided denom is a pool share token. Otherwise, returns false.
 func getPoolIdFromDenom(denom string) (string, bool) {
-	if !strings.HasPrefix(denom, "gamm/pool/") {
-		return "", false
+	if strings.HasPrefix(denom, "gamm/pool/") {
+		return strings.Trim(denom, "gamm/pool/"), true
 	}
-	return strings.Trim(denom, "gamm/pool/"), true
+	if strings.HasPrefix(denom, "cl/pool/") {
+		return strings.Trim(denom, "cl/pool/"), true
+	}
+
+	return "", false
 }
 
 // getPoolIdsFromCoins filters an array of coins and returns pool ids of pool share tokens in the array.
