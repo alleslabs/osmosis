@@ -370,11 +370,11 @@ func (app *OsmosisApp) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock)
 	BeginBlockForks(ctx, app)
 	app.DeliverContext = ctx
 	res := app.mm.BeginBlock(ctx, req)
-	fmt.Println("BeginBlock before cahce", time.Now().Sub(start))
+	fmt.Println("BeginBlock before cahce", ctx.BlockHeight(), time.Now().Sub(start))
 	cacheContext, _ := ctx.CacheContext()
-	fmt.Println("BeginBlock after cahce", time.Now().Sub(start))
+	fmt.Println("BeginBlock after cahce", ctx.BlockHeight(), time.Now().Sub(start))
 	app.hooks.AfterBeginBlock(cacheContext, req, res)
-	fmt.Println("finish BeginBlock", time.Now().Sub(start))
+	fmt.Println("finish BeginBlock", ctx.BlockHeight(), time.Now().Sub(start))
 	return res
 }
 
@@ -382,11 +382,11 @@ func (app *OsmosisApp) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock)
 func (app *OsmosisApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	start := time.Now()
 	res := app.mm.EndBlock(ctx, req)
-	fmt.Println("EndBloker before cahce", time.Now().Sub(start))
+	fmt.Println("EndBloker before cahce", ctx.BlockHeight(), time.Now().Sub(start))
 	cacheContext, _ := ctx.CacheContext()
-	fmt.Println("EndBlocker after cahce", time.Now().Sub(start))
+	fmt.Println("EndBlocker after cahce", ctx.BlockHeight(), time.Now().Sub(start))
 	app.hooks.AfterEndBlock(cacheContext, req, res)
-	fmt.Println("finish EndBlocker", time.Now().Sub(start))
+	fmt.Println("finish EndBlocker", ctx.BlockHeight(), time.Now().Sub(start))
 	return res
 }
 
@@ -424,11 +424,11 @@ func (app *OsmosisApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliver
 	fmt.Println("DeliverTx before cahce", time.Now().Sub(start))
 
 	cacheCtx, _ := app.DeliverContext.CacheContext()
-	fmt.Println("DeliverTx after cahce", time.Now().Sub(start))
+	fmt.Println("DeliverTx after cahce", cacheCtx.BlockHeight(), time.Now().Sub(start))
 
 	app.hooks.AfterDeliverTx(cacheCtx, req, res)
 
-	fmt.Println("finish DeliverTx", time.Now().Sub(start))
+	fmt.Println("finish DeliverTx", cacheCtx.BlockHeight(), time.Now().Sub(start))
 
 	return res
 }
