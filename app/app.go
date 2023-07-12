@@ -11,6 +11,7 @@ import (
 	"time"
 
 	store "github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/tendermint/tendermint/crypto/tmhash"
 
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 
@@ -428,8 +429,14 @@ func (app *OsmosisApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliver
 
 	app.hooks.AfterDeliverTx(cacheCtx, req, res)
 
+	ja := time.Now().Sub(start)
 	fmt.Println("finish DeliverTx", cacheCtx.BlockHeight(), time.Now().Sub(start))
 
+	if ja > 400*time.Microsecond {
+		txHash := tmhash.Sum(req.Tx)
+		h := fmt.Sprintf("%x", txHash)
+		fmt.Println("!!!@#!@#!@#!@#!", h)
+	}
 	return res
 }
 
