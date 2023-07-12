@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 
 	store "github.com/cosmos/cosmos-sdk/store/types"
 
@@ -365,21 +366,27 @@ func (app *OsmosisApp) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block.
 func (app *OsmosisApp) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
+	start := time.Now()
 	BeginBlockForks(ctx, app)
 	app.DeliverContext = ctx
 	res := app.mm.BeginBlock(ctx, req)
+	fmt.Println("BeginBlock before cahce", time.Now().Sub(start))
 	cacheContext, _ := ctx.CacheContext()
+	fmt.Println("BeginBlock after cahce", time.Now().Sub(start))
 	app.hooks.AfterBeginBlock(cacheContext, req, res)
-
+	fmt.Println("finish BeginBlock", time.Now().Sub(start))
 	return res
 }
 
 // EndBlocker application updates every end block.
 func (app *OsmosisApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+	start := time.Now()
 	res := app.mm.EndBlock(ctx, req)
+	fmt.Println("EndBloker before cahce", time.Now().Sub(start))
 	cacheContext, _ := ctx.CacheContext()
+	fmt.Println("EndBlocker after cahce", time.Now().Sub(start))
 	app.hooks.AfterEndBlock(cacheContext, req, res)
-
+	fmt.Println("finish EndBlocker", time.Now().Sub(start))
 	return res
 }
 
@@ -408,9 +415,17 @@ func (app *OsmosisApp) InitChainer(ctx sdk.Context, req abci.RequestInitChain) a
 
 // DeliverTx overwrite DeliverTx to apply the AfterDeliverTx hook.
 func (app *OsmosisApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx {
+	start := time.Now()
+
 	res := app.BaseApp.DeliverTx(req)
+	fmt.Println("DeliverTx before cahce", time.Now().Sub(start))
+
 	cacheCtx, _ := app.DeliverContext.CacheContext()
+	fmt.Println("DeliverTx after cahce", time.Now().Sub(start))
+
 	app.hooks.AfterDeliverTx(cacheCtx, req, res)
+
+	fmt.Println("finish DeliverTx", time.Now().Sub(start))
 
 	return res
 }
