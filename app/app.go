@@ -392,7 +392,10 @@ func (app *OsmosisApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abc
 
 // Commit overrides the default BaseApp's ABCI commit by adding DeliverContext clearing.
 func (app *OsmosisApp) Commit() (res abci.ResponseCommit) {
+	start := time.Now()
 	app.hooks.BeforeCommit()
+	fmt.Println("commit kafka kek", time.Now().Sub(start))
+
 	app.DeliverContext = sdk.Context{}
 
 	return app.BaseApp.Commit()
