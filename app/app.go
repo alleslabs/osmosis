@@ -422,17 +422,14 @@ func (app *OsmosisApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliver
 	start := time.Now()
 
 	res := app.BaseApp.DeliverTx(req)
-	fmt.Println("DeliverTx before cahce", time.Now().Sub(start))
 
 	cacheCtx, _ := app.DeliverContext.CacheContext()
-	fmt.Println("DeliverTx after cahce", cacheCtx.BlockHeight(), time.Now().Sub(start))
 
 	app.hooks.AfterDeliverTx(cacheCtx, req, res)
 
 	ja := time.Now().Sub(start)
-	fmt.Println("finish DeliverTx", cacheCtx.BlockHeight(), time.Now().Sub(start))
 
-	if ja > 400*time.Microsecond {
+	if ja > 400*time.Millisecond {
 		txHash := tmhash.Sum(req.Tx)
 		h := fmt.Sprintf("%x", txHash)
 		fmt.Println("!!!@#!@#!@#!@#!", h)
