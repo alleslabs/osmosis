@@ -13,6 +13,7 @@ import (
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+
 	"github.com/osmosis-labs/osmosis/v16/app/params"
 	"github.com/osmosis-labs/osmosis/v16/hooks/common"
 	clpkeeper "github.com/osmosis-labs/osmosis/v16/x/concentrated-liquidity"
@@ -358,7 +359,10 @@ func (pa *PoolAdapter) AfterEndBlock(
 		if len(rawIds) > 1 {
 			panic("Too many active prososals")
 		}
-		for _, rawId := range rawIds {
+		for idx, rawId := range rawIds {
+			if evMap[govtypes.EventTypeActiveProposal+"."+govtypes.AttributeKeyProposalResult][idx] != govtypes.AttributeValueProposalPassed {
+				continue
+			}
 			proposalId := uint64(common.Atoi(rawId))
 			proposal, _ := pa.govKeeper.GetProposal(ctx, proposalId)
 
