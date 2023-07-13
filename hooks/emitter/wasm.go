@@ -247,7 +247,10 @@ func (wa *WasmAdapter) PostDeliverTx(ctx sdk.Context, txHash []byte, txDict comm
 // AfterEndBlock checks for wasm related ActiveProposal events and process them accordingly.
 func (wa *WasmAdapter) AfterEndBlock(ctx sdk.Context, _ abci.RequestEndBlock, evMap common.EvMap, kafka *[]common.Message) {
 	if rawIds, ok := evMap[govtypes.EventTypeActiveProposal+"."+govtypes.AttributeKeyProposalID]; ok {
-		for _, rawId := range rawIds {
+		for idx, rawId := range rawIds {
+			if evMap[govtypes.EventTypeActiveProposal+"."+govtypes.AttributeKeyProposalResult][idx] != govtypes.AttributeValueProposalPassed {
+				continue
+			}
 			proposalId := common.Atoui(rawId)
 			proposal, _ := wa.govKeeper.GetProposal(ctx, proposalId)
 			switch content := proposal.GetContent().(type) {
