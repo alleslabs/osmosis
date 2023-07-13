@@ -1,0 +1,923 @@
+{
+    "version": 2,
+    "tables": [
+        {
+            "table": {
+                "schema": "public",
+                "name": "account_transactions"
+            },
+            "object_relationships": [
+                {
+                    "name": "account",
+                    "using": {
+                        "foreign_key_constraint_on": "account_id"
+                    }
+                },
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "block_height"
+                    }
+                },
+                {
+                    "name": "transaction",
+                    "using": {
+                        "foreign_key_constraint_on": "transaction_id"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "accounts"
+            },
+            "object_relationships": [
+                {
+                    "name": "validator",
+                    "using": {
+                        "manual_configuration": {
+                            "remote_table": {
+                                "schema": "public",
+                                "name": "validators"
+                            },
+                            "column_mapping": {
+                                "id": "account_id"
+                            }
+                        }
+                    }
+                }
+            ],
+            "array_relationships": [
+                {
+                    "name": "account_transactions",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "account_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "account_transactions"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "codes",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "uploader",
+                            "table": {
+                                "schema": "public",
+                                "name": "codes"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "contract_histories",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "sender",
+                            "table": {
+                                "schema": "public",
+                                "name": "contract_histories"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "contracts",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "admin",
+                            "table": {
+                                "schema": "public",
+                                "name": "contracts"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "contractsByInitBy",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "init_by",
+                            "table": {
+                                "schema": "public",
+                                "name": "contracts"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "pools",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "creator",
+                            "table": {
+                                "schema": "public",
+                                "name": "pools"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "proposals",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "proposer_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "proposals"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "transactions",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "sender",
+                            "table": {
+                                "schema": "public",
+                                "name": "transactions"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "begin_block_events"
+            },
+            "object_relationships": [
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "block_height"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "blocks"
+            },
+            "object_relationships": [
+                {
+                    "name": "validator",
+                    "using": {
+                        "foreign_key_constraint_on": "proposer"
+                    }
+                }
+            ],
+            "array_relationships": [
+                {
+                    "name": "account_transactions",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "block_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "account_transactions"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "begin_block_events",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "block_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "begin_block_events"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "code_proposals",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "resolved_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "code_proposals"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "contract_histories",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "block_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "contract_histories"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "contract_proposals",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "resolved_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "contract_proposals"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "end_block_events",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "block_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "end_block_events"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "lcd_tx_results",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "block_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "lcd_tx_results"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "pool_transactions",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "block_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "pool_transactions"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "profit_by_denoms",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "block_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "profit_by_denoms"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "profit_by_routes",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "block_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "profit_by_routes"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "proposals",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "resolved_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "proposals"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "trade_by_routes",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "block_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "trade_by_routes"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "trades",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "block_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "trades"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "transactions",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "block_height",
+                            "table": {
+                                "schema": "public",
+                                "name": "transactions"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "code_proposals"
+            },
+            "object_relationships": [
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "resolved_height"
+                    }
+                },
+                {
+                    "name": "code",
+                    "using": {
+                        "foreign_key_constraint_on": "code_id"
+                    }
+                },
+                {
+                    "name": "proposal",
+                    "using": {
+                        "foreign_key_constraint_on": "proposal_id"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "codes"
+            },
+            "object_relationships": [
+                {
+                    "name": "account",
+                    "using": {
+                        "foreign_key_constraint_on": "uploader"
+                    }
+                },
+                {
+                    "name": "transaction",
+                    "using": {
+                        "foreign_key_constraint_on": "transaction_id"
+                    }
+                }
+            ],
+            "array_relationships": [
+                {
+                    "name": "code_proposals",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "code_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "code_proposals"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "contract_histories",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "code_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "contract_histories"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "contracts",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "code_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "contracts"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "contract_histories"
+            },
+            "object_relationships": [
+                {
+                    "name": "account",
+                    "using": {
+                        "foreign_key_constraint_on": "sender"
+                    }
+                },
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "block_height"
+                    }
+                },
+                {
+                    "name": "code",
+                    "using": {
+                        "foreign_key_constraint_on": "code_id"
+                    }
+                },
+                {
+                    "name": "contract",
+                    "using": {
+                        "foreign_key_constraint_on": "contract_id"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "contract_proposals"
+            },
+            "object_relationships": [
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "resolved_height"
+                    }
+                },
+                {
+                    "name": "contract",
+                    "using": {
+                        "foreign_key_constraint_on": "contract_id"
+                    }
+                },
+                {
+                    "name": "proposal",
+                    "using": {
+                        "foreign_key_constraint_on": "proposal_id"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "contract_transactions"
+            },
+            "object_relationships": [
+                {
+                    "name": "contract",
+                    "using": {
+                        "foreign_key_constraint_on": "contract_id"
+                    }
+                },
+                {
+                    "name": "transaction",
+                    "using": {
+                        "foreign_key_constraint_on": "tx_id"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "contract_transactions_view"
+            }
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "contracts"
+            },
+            "object_relationships": [
+                {
+                    "name": "account",
+                    "using": {
+                        "foreign_key_constraint_on": "admin"
+                    }
+                },
+                {
+                    "name": "accountByInitBy",
+                    "using": {
+                        "foreign_key_constraint_on": "init_by"
+                    }
+                },
+                {
+                    "name": "code",
+                    "using": {
+                        "foreign_key_constraint_on": "code_id"
+                    }
+                },
+                {
+                    "name": "transaction",
+                    "using": {
+                        "foreign_key_constraint_on": "init_tx_id"
+                    }
+                }
+            ],
+            "array_relationships": [
+                {
+                    "name": "contract_histories",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "contract_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "contract_histories"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "contract_proposals",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "contract_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "contract_proposals"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "contract_transactions",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "contract_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "contract_transactions"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "end_block_events"
+            },
+            "object_relationships": [
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "block_height"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "lcd_tx_results"
+            },
+            "object_relationships": [
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "block_height"
+                    }
+                },
+                {
+                    "name": "transaction",
+                    "using": {
+                        "foreign_key_constraint_on": "transaction_id"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "pool_transactions"
+            },
+            "object_relationships": [
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "block_height"
+                    }
+                },
+                {
+                    "name": "pool",
+                    "using": {
+                        "foreign_key_constraint_on": "pool_id"
+                    }
+                },
+                {
+                    "name": "transaction",
+                    "using": {
+                        "foreign_key_constraint_on": "transaction_id"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "pools"
+            },
+            "object_relationships": [
+                {
+                    "name": "account",
+                    "using": {
+                        "foreign_key_constraint_on": "creator"
+                    }
+                },
+                {
+                    "name": "transaction",
+                    "using": {
+                        "foreign_key_constraint_on": "create_tx_id"
+                    }
+                }
+            ],
+            "array_relationships": [
+                {
+                    "name": "pool_transactions",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "pool_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "pool_transactions"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "profit_by_denoms"
+            },
+            "object_relationships": [
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "block_height"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "profit_by_routes"
+            },
+            "object_relationships": [
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "block_height"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "proposals"
+            },
+            "object_relationships": [
+                {
+                    "name": "account",
+                    "using": {
+                        "foreign_key_constraint_on": "proposer_id"
+                    }
+                },
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "resolved_height"
+                    }
+                }
+            ],
+            "array_relationships": [
+                {
+                    "name": "code_proposals",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "proposal_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "code_proposals"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "contract_proposals",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "proposal_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "contract_proposals"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "tracking"
+            }
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "trade_by_routes"
+            },
+            "object_relationships": [
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "block_height"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "trades"
+            },
+            "object_relationships": [
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "block_height"
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "transactions"
+            },
+            "object_relationships": [
+                {
+                    "name": "account",
+                    "using": {
+                        "foreign_key_constraint_on": "sender"
+                    }
+                },
+                {
+                    "name": "block",
+                    "using": {
+                        "foreign_key_constraint_on": "block_height"
+                    }
+                }
+            ],
+            "array_relationships": [
+                {
+                    "name": "account_transactions",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "transaction_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "account_transactions"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "codes",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "transaction_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "codes"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "contracts",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "init_tx_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "contracts"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "contract_transactions",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "tx_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "contract_transactions"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "lcd_tx_results",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "transaction_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "lcd_tx_results"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "pools",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "create_tx_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "pools"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "pool_transactions",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "transaction_id",
+                            "table": {
+                                "schema": "public",
+                                "name": "pool_transactions"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "table": {
+                "schema": "public",
+                "name": "validators"
+            },
+            "object_relationships": [
+                {
+                    "name": "account",
+                    "using": {
+                        "foreign_key_constraint_on": "account_id"
+                    }
+                }
+            ],
+            "array_relationships": [
+                {
+                    "name": "blocks",
+                    "using": {
+                        "foreign_key_constraint_on": {
+                            "column": "proposer",
+                            "table": {
+                                "schema": "public",
+                                "name": "blocks"
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

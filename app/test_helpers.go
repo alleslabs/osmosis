@@ -29,7 +29,7 @@ func getDefaultGenesisStateBytes() []byte {
 // SetupWithCustomHome initializes a new OsmosisApp with a custom home directory
 func SetupWithCustomHome(isCheckTx bool, dir string) *OsmosisApp {
 	db := dbm.NewMemDB()
-	app := NewOsmosisApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, dir, 0, simapp.EmptyAppOptions{}, EmptyWasmOpts)
+	app := NewOsmosisApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, dir, "", 0, simapp.EmptyAppOptions{}, EmptyWasmOpts)
 	if !isCheckTx {
 		stateBytes := getDefaultGenesisStateBytes()
 
@@ -61,7 +61,7 @@ func SetupTestingAppWithLevelDb(isCheckTx bool) (app *OsmosisApp, cleanupFn func
 	if err != nil {
 		panic(err)
 	}
-	app = NewOsmosisApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, DefaultNodeHome, 5, simapp.EmptyAppOptions{}, EmptyWasmOpts)
+	app = NewOsmosisApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, DefaultNodeHome, "", 5, simapp.EmptyAppOptions{}, EmptyWasmOpts)
 	if !isCheckTx {
 		genesisState := NewDefaultGenesisState()
 		stateBytes, err := json.MarshalIndent(genesisState, "", " ")

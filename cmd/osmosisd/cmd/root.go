@@ -47,6 +47,8 @@ import (
 	osmosis "github.com/osmosis-labs/osmosis/v16/app"
 )
 
+const FlagWithEmitter = "with-emitter"
+
 // NewRootCmd creates a new root command for simd. It is called once in the
 // main function.
 func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
@@ -209,6 +211,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 func addModuleInitFlags(startCmd *cobra.Command) {
 	crisis.AddModuleInitFlags(startCmd)
 	wasm.AddModuleInitFlags(startCmd)
+	startCmd.Flags().String(FlagWithEmitter, "", "Enable data indexing to a message queue")
 }
 
 // queryCommand adds transaction and account querying commands.
@@ -299,6 +302,7 @@ func newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts serverty
 	return osmosis.NewOsmosisApp(
 		logger, db, traceStore, true, skipUpgradeHeights,
 		cast.ToString(appOpts.Get(flags.FlagHome)),
+		cast.ToString(appOpts.Get(FlagWithEmitter)),
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
 		appOpts,
 		wasmOpts,
@@ -324,7 +328,7 @@ func createOsmosisAppAndExport(
 	encCfg.Marshaler = codec.NewProtoCodec(encCfg.InterfaceRegistry)
 	loadLatest := height == -1
 	homeDir := cast.ToString(appOpts.Get(flags.FlagHome))
-	app := osmosis.NewOsmosisApp(logger, db, traceStore, loadLatest, map[int64]bool{}, homeDir, 0, appOpts, osmosis.EmptyWasmOpts)
+	app := osmosis.NewOsmosisApp(logger, db, traceStore, loadLatest, map[int64]bool{}, homeDir, "", 0, appOpts, osmosis.EmptyWasmOpts)
 
 	if !loadLatest {
 		if err := app.LoadHeight(height); err != nil {
