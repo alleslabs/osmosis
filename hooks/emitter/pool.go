@@ -48,9 +48,11 @@ type PoolAdapter struct {
 	isMigrate      bool
 
 	// pool transactions
-	poolTxs       map[uint64]bool
-	poolInBlock   map[uint64]bool
-	onlyPoolMsgTx bool
+	cosmwasmContractAddrs map[string]uint64
+	isCosmwasmLoaded      bool
+	poolTxs               map[uint64]bool
+	poolInBlock           map[uint64]bool
+	onlyPoolMsgTx         bool
 
 	// keepers
 	accountKeeper      *authkeeper.AccountKeeper
@@ -75,24 +77,26 @@ func NewPoolAdapter(
 	wasmKeeper *wasmkeeper.Keeper,
 ) *PoolAdapter {
 	return &PoolAdapter{
-		isSwapTx:           false,
-		isLpTx:             false,
-		isBondTx:           false,
-		isSuperfluidTx:     false,
-		isClp:              false,
-		isCollect:          false,
-		isMigrate:          false,
-		poolTxs:            make(map[uint64]bool),
-		poolInBlock:        make(map[uint64]bool),
-		onlyPoolMsgTx:      true,
-		accountKeeper:      accountKeeper,
-		clpKeeper:          clpKeeper,
-		cosmwasmpoolKeeper: cosmwasmpoolKeeper,
-		gammKeeper:         gammKeeper,
-		govKeeper:          govKeeper,
-		lockupKeeper:       lockupKeeper,
-		poolmanagerKeeper:  poolmanagerKeeper,
-		wasmKeeper:         wasmKeeper,
+		isSwapTx:              false,
+		isLpTx:                false,
+		isBondTx:              false,
+		isSuperfluidTx:        false,
+		isClp:                 false,
+		isCollect:             false,
+		isMigrate:             false,
+		cosmwasmContractAddrs: make(map[string]uint64),
+		isCosmwasmLoaded:      false,
+		poolTxs:               make(map[uint64]bool),
+		poolInBlock:           make(map[uint64]bool),
+		onlyPoolMsgTx:         true,
+		accountKeeper:         accountKeeper,
+		clpKeeper:             clpKeeper,
+		cosmwasmpoolKeeper:    cosmwasmpoolKeeper,
+		gammKeeper:            gammKeeper,
+		govKeeper:             govKeeper,
+		lockupKeeper:          lockupKeeper,
+		poolmanagerKeeper:     poolmanagerKeeper,
+		wasmKeeper:            wasmKeeper,
 	}
 }
 
@@ -106,7 +110,18 @@ func (pa *PoolAdapter) AfterInitChain(
 }
 
 // AfterBeginBlock sets the necessary map to the starting value before processing each block.
-func (pa *PoolAdapter) AfterBeginBlock(_ sdk.Context, _ abci.RequestBeginBlock, _ common.EvMap, _ *[]common.Message) {
+func (pa *PoolAdapter) AfterBeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock, _ common.EvMap, _ *[]common.Message) {
+	if !pa.isCosmwasmLoaded {
+		pools, err := pa.cosmwasmpoolKeeper.GetPools(ctx)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, pool := range pools {
+			pa.cosmwasmContractAddrs[pool.GetAddress().String()] = pool.GetId()
+		}
+		pa.isCosmwasmLoaded = true
+	}
 	pa.poolInBlock = make(map[uint64]bool)
 }
 
@@ -282,6 +297,10 @@ func (pa *PoolAdapter) CheckMsg(ctx sdk.Context, msg sdk.Msg) {
 				pa.isCollect = true
 				pa.poolTxs[position.PoolId] = true
 			}
+		}
+	case *wasmtypes.MsgExecuteContract:
+		if poolId, found := pa.cosmwasmContractAddrs[msg.Contract]; found {
+			pa.poolTxs[poolId] = true
 		}
 	default:
 		pa.onlyPoolMsgTx = false
@@ -634,6 +653,7 @@ func (pa *PoolAdapter) handleCreatePoolEvents(ctx sdk.Context, txHash []byte, se
 					"tick_spacing":         pool.GetTickSpacing(),
 				})
 			case *cosmwasmpool.Pool:
+				pa.cosmwasmContractAddrs[pool.GetContractAddress()] = poolId
 				common.AppendMessage(kafka, "NEW_OSMOSIS_POOL", common.JsDict{
 					"id":                   poolId,
 					"liquidity":            pool.GetTotalPoolLiquidity(ctx),
@@ -795,6 +815,13 @@ func (pa *PoolAdapter) handleNonPoolMsgsPoolActionEvents(ctx sdk.Context, evMap 
 			if position, err := pa.clpKeeper.GetPosition(ctx, common.Atoui(positionId)); err == nil {
 				pa.isCollect = true
 				pa.poolTxs[position.PoolId] = true
+			}
+		}
+	}
+	if contractAddresses, ok := evMap[wasmtypes.EventTypeExecute+"."+wasmtypes.AttributeKeyContractAddr]; ok {
+		for _, contract := range contractAddresses {
+			if poolId, found := pa.cosmwasmContractAddrs[contract]; found {
+				pa.poolTxs[poolId] = true
 			}
 		}
 	}
