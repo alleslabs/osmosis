@@ -16,6 +16,7 @@ import (
 	"github.com/osmosis-labs/osmosis/v16/app/keepers"
 	"github.com/osmosis-labs/osmosis/v16/app/params"
 	"github.com/osmosis-labs/osmosis/v16/hooks/common"
+	"github.com/osmosis-labs/osmosis/v16/hooks/writer"
 )
 
 // Hook uses Kafka message queue and adapters functionality to act as an event producer for all events in the blockchains.
@@ -35,6 +36,7 @@ func NewHook(
 	keeper keepers.AppKeepers,
 	kafkaURI string,
 ) *Hook {
+	writer.NewPubSubWriter("")
 	paths := strings.SplitN(kafkaURI, "@", 2)
 	return &Hook{
 		encodingConfig: encodingConfig,
