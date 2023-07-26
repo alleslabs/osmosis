@@ -50,7 +50,7 @@ func DefaultConfig() network.Config {
 func NewAppConstructor() network.AppConstructor {
 	return func(val network.Validator) servertypes.Application {
 		return NewOsmosisApp(
-			val.Ctx.Logger, dbm.NewMemDB(), nil, true, make(map[int64]bool), val.Ctx.Config.RootDir, "", 0,
+			val.Ctx.Logger, dbm.NewMemDB(), nil, true, make(map[int64]bool), val.Ctx.Config.RootDir, 0,
 			simapp.EmptyAppOptions{},
 			EmptyWasmOpts,
 			baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),

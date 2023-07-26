@@ -191,7 +191,6 @@ func NewOsmosisApp(
 	loadLatest bool,
 	skipUpgradeHeights map[int64]bool,
 	homePath string,
-	withEmitter string,
 	invCheckPeriod uint,
 	appOpts servertypes.AppOptions,
 	wasmOpts []wasm.Option,
@@ -320,9 +319,7 @@ func NewOsmosisApp(
 
 	// Initialize emitter hook and append to the app hooks.
 	app.hooks = make(common.Hooks, 0)
-	if withEmitter != "" {
-		app.hooks = append(app.hooks, emitter.NewHook(encodingConfig, app.AppKeepers, withEmitter))
-	}
+	app.hooks = append(app.hooks, emitter.NewHook(encodingConfig, app.AppKeepers))
 
 	// Register snapshot extensions to enable state-sync for wasm.
 	if manager := app.SnapshotManager(); manager != nil {

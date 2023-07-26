@@ -1,14 +1,13 @@
 package emitter
 
 import (
-	"context"
 	"encoding/json"
-	"strings"
-	"time"
+	"fmt"
+	"os"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/segmentio/kafka-go"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	tmjson "github.com/tendermint/tendermint/libs/json"
@@ -21,30 +20,25 @@ import (
 // Hook uses Kafka message queue and adapters functionality to act as an event producer for all events in the blockchains.
 type Hook struct {
 	encodingConfig params.EncodingConfig // The app encoding config
-	writer         *kafka.Writer         // Main Kafka writer instance
+	producer       *kafka.Producer       // Kafka producer
 	accsInBlock    map[string]bool       // Accounts needed to be updated at the end of the block
 	accsInTx       map[string]bool       // Accounts related to the current processing transaction
 	msgs           []common.Message      // The list of all Kafka messages to be published for this block
 	adapters       []Adapter             // Array of adapters needed for the hook
 	accVerifiers   []AccountVerifier     // Array of AccountVerifier needed for account verification
+	height         int64
 }
 
 // NewHook creates an emitter hook instance that will be added in the Osmosis App.
 func NewHook(
 	encodingConfig params.EncodingConfig,
 	keeper keepers.AppKeepers,
-	kafkaURI string,
 ) *Hook {
-	paths := strings.SplitN(kafkaURI, "@", 2)
+	conf := ReadConfig(os.Getenv("KAFKA_CONFIG_DIR"))
+	p, _ := kafka.NewProducer(&conf)
 	return &Hook{
 		encodingConfig: encodingConfig,
-		writer: kafka.NewWriter(kafka.WriterConfig{
-			Brokers:      paths[1:],
-			Topic:        paths[0],
-			Balancer:     &kafka.LeastBytes{},
-			BatchTimeout: 1 * time.Millisecond,
-			BatchBytes:   512000000,
-		}),
+		producer:       p,
 		adapters: []Adapter{
 			NewValidatorAdapter(keeper.StakingKeeper),
 			NewBankAdapter(),
@@ -77,15 +71,35 @@ func (h *Hook) AddAccountsInTx(accs ...string) {
 
 // FlushMessages publishes all pending messages to Kafka message queue. Blocks until completion.
 func (h *Hook) FlushMessages() {
-	kafkaMsgs := make([]kafka.Message, len(h.msgs))
+	total := len(h.msgs)
+	kafkaMsgs := make([]kafka.Message, total)
 	for idx, msg := range h.msgs {
 		res, _ := json.Marshal(msg.Value) // Error must always be nil.
 		kafkaMsgs[idx] = kafka.Message{Key: []byte(msg.Key), Value: res}
+		topic := "beeb-test"
+		err := h.producer.Produce(&kafka.Message{
+			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+			Key:            []byte(msg.Key),
+			Value:          res,
+			Headers: []kafka.Header{
+				{Key: "index", Value: []byte(fmt.Sprint(idx))},
+				{Key: "total", Value: []byte(fmt.Sprint(total))},
+				{Key: "height", Value: []byte(fmt.Sprint(h.height))},
+			},
+		},
+			nil,
+		)
+		if err != nil {
+			panic(err)
+		}
 	}
-	err := h.writer.WriteMessages(context.Background(), kafkaMsgs...)
-	if err != nil {
-		panic(err)
-	}
+	h.producer.Flush(0)
+	// Wait for all messages to be delivered
+	// h.producer.Close()
+	// // err := h.writer.WriteMessages(context.Background(), kafkaMsgs...)
+	// if err != nil {
+	// 	panic(err)
+	// }
 }
 
 // AfterInitChain specifies actions to be done after chain initialization (app.Hook interface).
@@ -204,6 +218,7 @@ func (h *Hook) AfterEndBlock(ctx sdk.Context, req abci.RequestEndBlock, res abci
 	}
 	h.msgs = append(modifiedMsgs, h.msgs[1:]...)
 	common.AppendMessage(&h.msgs, "COMMIT", common.JsDict{"height": req.Height})
+	h.height = req.Height
 }
 
 // BeforeCommit specifies actions to be done before commit block (app.Hook interface).
