@@ -630,7 +630,7 @@ func (pa *PoolAdapter) handleCreatePoolEvents(ctx sdk.Context, txHash []byte, se
 			case *concentratedpool.Pool:
 				token0 := pool.GetToken0()
 				token1 := pool.GetToken1()
-				poolLiquidity := sdk.NewCoins(sdk.NewCoin(token0, sdk.ZeroInt()), sdk.NewCoin(token1, sdk.ZeroInt()))
+				poolLiquidity := []sdk.Coin{sdk.NewCoin(token0, sdk.ZeroInt()), sdk.NewCoin(token1, sdk.ZeroInt())}
 				common.AppendMessage(kafka, "NEW_OSMOSIS_POOL", common.JsDict{
 					"id":                   poolId,
 					"liquidity":            poolLiquidity,
