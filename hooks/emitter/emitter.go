@@ -76,7 +76,7 @@ func (h *Hook) FlushMessages() {
 	for idx, msg := range h.msgs {
 		res, _ := json.Marshal(msg.Value) // Error must always be nil.
 		kafkaMsgs[idx] = kafka.Message{Key: []byte(msg.Key), Value: res}
-		topic := os.Getenv("TOPIC")
+		topic := os.Getenv("MESSAGES_TOPIC")
 		err := h.producer.Produce(&kafka.Message{
 			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 			Key:            []byte(msg.Key),
