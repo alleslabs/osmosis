@@ -94,12 +94,6 @@ func (h *Hook) FlushMessages() {
 		}
 	}
 	h.producer.Flush(0)
-	// Wait for all messages to be delivered
-	// h.producer.Close()
-	// // err := h.writer.WriteMessages(context.Background(), kafkaMsgs...)
-	// if err != nil {
-	// 	panic(err)
-	// }
 }
 
 // AfterInitChain specifies actions to be done after chain initialization (app.Hook interface).
