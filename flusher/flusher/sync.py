@@ -12,10 +12,10 @@ from .db import tracking
 from .handler import Handler
 
 
-def make_confluent_config(servers, username, password):
+def make_confluent_config(servers, username, password, topic_id):
     return {
         "bootstrap.servers": servers,
-        "group.id": "test",
+        "group.id": topic_id + "-flusher",
         "security.protocol": "SASL_SSL",
         "sasl.mechanisms": "PLAIN",
         "sasl.username": username,
@@ -73,7 +73,7 @@ def sync(db, servers, username, password, echo_sqlalchemy, topic_id):
     # Set up Kafka connection
     engine = create_engine("postgresql+psycopg2://" + db, echo=echo_sqlalchemy)
     tracking_info = engine.execute(tracking.select()).fetchone()
-    consumer = Consumer(make_confluent_config(servers, username, password))
+    consumer = Consumer(make_confluent_config(servers, username, password, topic_id))
     partition = TopicPartition(topic_id, 0, tracking_info.kafka_offset + 1)
     consumer.assign([partition])
     consumer.seek(partition)
