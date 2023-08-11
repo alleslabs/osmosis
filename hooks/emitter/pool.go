@@ -856,9 +856,13 @@ func (pa *PoolAdapter) flushUpdatePoolStats(ctx sdk.Context, kafka *[]common.Mes
 			})
 		case *concentratedpool.Pool:
 			poolLiquidity, _ := pa.clpKeeper.GetTotalPoolLiquidity(ctx, poolId)
+			token0 := pool.GetToken0()
+			token1 := pool.GetToken1()
+			amount0 := poolLiquidity.AmountOf(token0)
+			amount1 := poolLiquidity.AmountOf(token1)
 			common.AppendMessage(kafka, "UPDATE_POOL", common.JsDict{
 				"id":        poolId,
-				"liquidity": poolLiquidity,
+				"liquidity": []sdk.Coin{sdk.NewCoin(token0, amount0), sdk.NewCoin(token1, amount1)},
 			})
 		case *cosmwasmpool.Pool:
 			common.AppendMessage(kafka, "UPDATE_POOL", common.JsDict{
