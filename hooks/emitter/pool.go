@@ -398,30 +398,35 @@ func (pa *PoolAdapter) AfterEndBlock(
 					}
 				}
 			case *clptypes.CreateConcentratedLiquidityPoolsProposal:
+				numPoolsCreated := len(content.PoolRecords)
 				poolmanagerModuleAcc := pa.accountKeeper.GetModuleAccount(ctx, poolmanagertypes.ModuleName)
 				poolCreatorAddress := poolmanagerModuleAcc.GetAddress()
-				poolId := pa.poolmanagerKeeper.GetNextPoolId(ctx) - 1
-				pool, _ := pa.clpKeeper.GetPool(ctx, poolId)
-				concentratedPool, ok := pool.(clptypes.ConcentratedPoolExtension)
-				if !ok {
-					panic(fmt.Errorf("cannot decode concentrated pool from proposal, proposal => %d, pool id => %d", proposalId, poolId))
+				for i := 1; i <= numPoolsCreated; i++ {
+					poolId := pa.poolmanagerKeeper.GetNextPoolId(ctx) - uint64(i)
+					pool, _ := pa.clpKeeper.GetPool(ctx, poolId)
+					concentratedPool, ok := pool.(clptypes.ConcentratedPoolExtension)
+					if !ok {
+						panic(fmt.Errorf("cannot decode concentrated pool from proposal, proposal => %d, pool id => %d", proposalId, poolId))
+					}
+					token0 := concentratedPool.GetToken0()
+					token1 := concentratedPool.GetToken1()
+					poolLiquidity := []sdk.Coin{sdk.NewCoin(token0, sdk.ZeroInt()), sdk.NewCoin(token1, sdk.ZeroInt())}
+					common.AppendMessage(kafka, "NEW_OSMOSIS_POOL", common.JsDict{
+						"id":                   poolId,
+						"liquidity":            poolLiquidity,
+						"type":                 concentratedPool.GetType(),
+						"creator":              poolCreatorAddress,
+						"is_superfluid":        false,
+						"is_supported":         false,
+						"swap_fee":             concentratedPool.GetSpreadFactor(ctx),
+						"exit_fee":             "0",
+						"future_pool_governor": "",
+						"address":              concentratedPool.GetAddress().String(),
+						"total_shares":         sdk.Coin{},
+						"spread_factor":        concentratedPool.GetSpreadFactor(ctx),
+						"tick_spacing":         concentratedPool.GetTickSpacing(),
+					})
 				}
-				poolLiquidity, _ := pa.clpKeeper.GetTotalPoolLiquidity(ctx, poolId)
-				common.AppendMessage(kafka, "NEW_OSMOSIS_POOL", common.JsDict{
-					"id":                   poolId,
-					"liquidity":            poolLiquidity,
-					"type":                 concentratedPool.GetType(),
-					"creator":              poolCreatorAddress,
-					"is_superfluid":        false,
-					"is_supported":         false,
-					"swap_fee":             concentratedPool.GetSpreadFactor(ctx),
-					"exit_fee":             "0",
-					"future_pool_governor": "",
-					"address":              concentratedPool.GetAddress().String(),
-					"total_shares":         sdk.Coin{},
-					"spread_factor":        concentratedPool.GetSpreadFactor(ctx),
-					"tick_spacing":         concentratedPool.GetTickSpacing(),
-				})
 			case *clptypes.TickSpacingDecreaseProposal:
 				for _, record := range content.PoolIdToTickSpacingRecords {
 					common.AppendMessage(kafka, "UPDATE_POOL", common.JsDict{
