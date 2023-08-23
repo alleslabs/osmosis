@@ -69,6 +69,7 @@ def make_confluent_config(servers, username, password, topic_id):
     show_default=True,
 )
 @click.option("-e", "--echo-sqlalchemy", "echo_sqlalchemy", is_flag=True)
+@logger.catch(reraise=True)
 def sync(db, servers, username, password, echo_sqlalchemy, topic_id):
     """Subscribe to Kafka and push the updates to the database."""
     logger.configure(handlers=[{"sink": sys.stderr, "level": "INFO", "serialize": True}])
