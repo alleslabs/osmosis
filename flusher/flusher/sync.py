@@ -80,10 +80,6 @@ def sync(db, servers, username, password, echo_sqlalchemy, topic_id):
     consumer.assign([partition])
     consumer.seek(partition)
 
-    # try log an error and a warning
-    logger.error("This is an error")
-    logger.warning("This is a warning")
-
     while True:
         with engine.begin() as conn:
             while True:
