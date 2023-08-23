@@ -71,7 +71,7 @@ def make_confluent_config(servers, username, password, topic_id):
 @click.option("-e", "--echo-sqlalchemy", "echo_sqlalchemy", is_flag=True)
 def sync(db, servers, username, password, echo_sqlalchemy, topic_id):
     """Subscribe to Kafka and push the updates to the database."""
-    logger.add(sys.stderr, serialize=True, level="INFO")
+    logger.configure(handlers=[{"sink": sys.stderr, "level": "INFO", "serialize": True}])
     # Set up Kafka connection
     engine = create_engine("postgresql+psycopg2://" + db, echo=echo_sqlalchemy)
     tracking_info = engine.execute(tracking.select()).fetchone()
