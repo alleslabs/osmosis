@@ -1,5 +1,6 @@
 import json
 import click
+import sys
 
 from confluent_kafka import Consumer, TopicPartition
 from loguru import logger
@@ -70,6 +71,7 @@ def make_confluent_config(servers, username, password, topic_id):
 @click.option("-e", "--echo-sqlalchemy", "echo_sqlalchemy", is_flag=True)
 def sync(db, servers, username, password, echo_sqlalchemy, topic_id):
     """Subscribe to Kafka and push the updates to the database."""
+    logger.add(sys.stderr, serialize=True, level="INFO")
     # Set up Kafka connection
     engine = create_engine("postgresql+psycopg2://" + db, echo=echo_sqlalchemy)
     tracking_info = engine.execute(tracking.select()).fetchone()
@@ -91,9 +93,9 @@ def sync(db, servers, username, password, echo_sqlalchemy, topic_id):
                 if key == "COMMIT":
                     conn.execute(tracking.update().values(kafka_offset=msg.offset()))
                     logger.info(
-                        "Committed at block {} and Kafka offset {}",
-                        value["height"],
-                        msg.offset(),
+                        "Committed at block {height} and Kafka offset {offset}",
+                        height=value["height"],
+                        offset=msg.offset(),
                     )
                     break
                 getattr(handler, "handle_" + key.lower())(value)
