@@ -48,6 +48,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 
+	"github.com/osmosis-labs/osmosis/v17/hooks/common"
+	"github.com/osmosis-labs/osmosis/v17/hooks/emitter"
+
 	"github.com/osmosis-labs/osmosis/v17/app/keepers"
 	"github.com/osmosis-labs/osmosis/v17/app/upgrades"
 	v10 "github.com/osmosis-labs/osmosis/v17/app/upgrades/v10"
@@ -145,6 +148,13 @@ type OsmosisApp struct {
 	mm           *module.Manager
 	configurator module.Configurator
 	homePath     string
+
+	// DeliverContext is set during InitGenesis/BeginBlock and cleared during Commit.
+	// It allows anyone to read/mutate Osmosis consensus state at anytime.
+	DeliverContext sdk.Context
+
+	// List of hooks
+	hooks common.Hooks
 }
 
 // init sets DefaultNodeHome to default osmosisd install location.
@@ -183,6 +193,7 @@ func NewOsmosisApp(
 	loadLatest bool,
 	skipUpgradeHeights map[int64]bool,
 	homePath string,
+	withEmitter string,
 	invCheckPeriod uint,
 	appOpts servertypes.AppOptions,
 	wasmOpts []wasm.Option,
@@ -309,6 +320,12 @@ func NewOsmosisApp(
 	app.SetPostHandler(NewPostHandler(app.ProtoRevKeeper))
 	app.SetEndBlocker(app.EndBlocker)
 
+	// Initialize emitter hook and append to the app hooks.
+	app.hooks = make(common.Hooks, 0)
+	if withEmitter != "" {
+		app.hooks = append(app.hooks, emitter.NewHook(encodingConfig, app.AppKeepers, withEmitter))
+	}
+
 	// Register snapshot extensions to enable state-sync for wasm.
 	if manager := app.SnapshotManager(); manager != nil {
 		err := manager.RegisterExtensions(
@@ -351,12 +368,29 @@ func (app *OsmosisApp) Name() string { return app.BaseApp.Name() }
 // BeginBlocker application updates every begin block.
 func (app *OsmosisApp) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
 	BeginBlockForks(ctx, app)
-	return app.mm.BeginBlock(ctx, req)
+	app.DeliverContext = ctx
+	res := app.mm.BeginBlock(ctx, req)
+	cacheContext, _ := ctx.CacheContext()
+	app.hooks.AfterBeginBlock(cacheContext, req, res)
+
+	return res
 }
 
 // EndBlocker application updates every end block.
 func (app *OsmosisApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return app.mm.EndBlock(ctx, req)
+	res := app.mm.EndBlock(ctx, req)
+	cacheContext, _ := ctx.CacheContext()
+	app.hooks.AfterEndBlock(cacheContext, req, res)
+
+	return res
+}
+
+// Commit overrides the default BaseApp's ABCI commit by adding DeliverContext clearing.
+func (app *OsmosisApp) Commit() (res abci.ResponseCommit) {
+	app.hooks.BeforeCommit()
+	app.DeliverContext = sdk.Context{}
+
+	return app.BaseApp.Commit()
 }
 
 // InitChainer application update at chain initialization.
@@ -367,8 +401,20 @@ func (app *OsmosisApp) InitChainer(ctx sdk.Context, req abci.RequestInitChain) a
 	}
 
 	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.mm.GetVersionMap())
+	res := app.mm.InitGenesis(ctx, app.appCodec, genesisState)
+	cacheContext, _ := ctx.CacheContext()
+	app.hooks.AfterInitChain(cacheContext, req, res)
 
-	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
+	return res
+}
+
+// DeliverTx overwrite DeliverTx to apply the AfterDeliverTx hook.
+func (app *OsmosisApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx {
+	res := app.BaseApp.DeliverTx(req)
+	cacheCtx, _ := app.DeliverContext.CacheContext()
+	app.hooks.AfterDeliverTx(cacheCtx, req, res)
+
+	return res
 }
 
 // LoadHeight loads a particular height.
