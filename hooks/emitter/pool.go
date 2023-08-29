@@ -492,6 +492,7 @@ func (pa *PoolAdapter) AfterEndBlock(
 					"contract_instantiated":    0,
 					"access_config_permission": codeInfo.InstantiateConfig.Permission.String(),
 					"access_config_addresses":  addresses,
+					"hash":                     codeInfo.CodeHash,
 				})
 				common.AppendMessage(kafka, "NEW_CODE_PROPOSAL", common.JsDict{
 					"code_id":         codeId,

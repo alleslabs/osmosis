@@ -184,6 +184,7 @@ codes = sa.Table(
     Column("access_config_addresses", sa.JSON),
     Column("cw2_contract", sa.String, nullable=True),
     Column("cw2_version", sa.String, nullable=True),
+    Column("hash", CustomBase64)
 )
 
 contracts = sa.Table(

@@ -86,6 +86,7 @@ func (wa *WasmAdapter) AfterInitChain(ctx sdk.Context, encodingConfig params.Enc
 			"contract_instantiated":    0,
 			"access_config_permission": code.CodeInfo.InstantiateConfig.Permission.String(),
 			"access_config_addresses":  addresses,
+			"hash":                     code.CodeInfo.CodeHash,
 		})
 	}
 
@@ -277,6 +278,7 @@ func (wa *WasmAdapter) AfterEndBlock(ctx sdk.Context, _ abci.RequestEndBlock, ev
 						"contract_instantiated":    0,
 						"access_config_permission": codeInfo.InstantiateConfig.Permission.String(),
 						"access_config_addresses":  addresses,
+						"hash":                     codeInfo.CodeHash,
 					})
 					common.AppendMessage(kafka, "NEW_CODE_PROPOSAL", common.JsDict{
 						"code_id":         id,
@@ -436,6 +438,7 @@ func (wa *WasmAdapter) updateNewCodeEvents(ctx sdk.Context, txHash []byte, msg s
 				"access_config_permission": codeInfo.InstantiateConfig.Permission.String(),
 				"access_config_addresses":  addresses,
 				"tx_hash":                  txHash,
+				"hash":                     codeInfo.CodeHash,
 			})
 		}
 	}
