@@ -1,6 +1,8 @@
+import json
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from base64 import b64encode
+from google.cloud import storage
 
 from flusher.db import (
     accounts,
@@ -344,3 +346,12 @@ class Handler(object):
             .where(validators.c.operator_address == msg["operator_address"])
             .values(**msg)
         )
+
+    def handle_claim_check(self, msg):
+        # read message from gcs
+        blob = self.bucket.blob(msg["object_path"])
+        raw_message = blob.download_as_string()
+        message = json.loads(raw_message)
+        key = message["Key"]
+        value = message["Value"]
+        getattr(self, "handle_" + key.lower())(value)

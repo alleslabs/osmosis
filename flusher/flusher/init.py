@@ -1,9 +1,8 @@
-import json
-
 import click
 
 from .db import metadata, tracking
 from .cli import cli
+from loguru import logger
 
 from sqlalchemy import create_engine
 
@@ -18,6 +17,7 @@ from sqlalchemy import create_engine
     default="localhost:5432/postgres",
     show_default=True,
 )
+@logger.catch(reraise=True)
 def init(chain_id, topic, replay_topic, db):
     """Initialize the database with empty tables and tracking info."""
     engine = create_engine("postgresql+psycopg2://" + db, echo=True)
