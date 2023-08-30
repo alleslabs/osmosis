@@ -323,7 +323,7 @@ func NewOsmosisApp(
 	// Initialize emitter hook and append to the app hooks.
 	app.hooks = make(common.Hooks, 0)
 	if withEmitter != "" {
-		app.hooks = append(app.hooks, emitter.NewHook(encodingConfig, app.AppKeepers, withEmitter))
+		app.hooks = append(app.hooks, emitter.NewHook(encodingConfig, app.AppKeepers, withEmitter, logger))
 	}
 
 	// Register snapshot extensions to enable state-sync for wasm.

@@ -2,16 +2,25 @@ package emitter
 
 import (
 	"context"
+	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
-	"strings"
+	"fmt"
+	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl/plain"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	tmjson "github.com/tendermint/tendermint/libs/json"
+	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/osmosis-labs/osmosis/v17/app/keepers"
 	"github.com/osmosis-labs/osmosis/v17/app/params"
@@ -27,23 +36,51 @@ type Hook struct {
 	msgs           []common.Message      // The list of all Kafka messages to be published for this block
 	adapters       []Adapter             // Array of adapters needed for the hook
 	accVerifiers   []AccountVerifier     // Array of AccountVerifier needed for account verification
+	height         int64                 // The current block height
+	logger         log.Logger            // Logger instance
+	uploader       *manager.Uploader     // S3 uploader instance
 }
 
 // NewHook creates an emitter hook instance that will be added in the Osmosis App.
 func NewHook(
 	encodingConfig params.EncodingConfig,
 	keeper keepers.AppKeepers,
-	kafkaURI string,
+	bootstrapServer string,
+	logger log.Logger,
 ) *Hook {
-	paths := strings.SplitN(kafkaURI, "@", 2)
+	mechanism := plain.Mechanism{
+		Username: os.Getenv("KAFKA_API_KEY"),
+		Password: os.Getenv("KAFKA_API_SECRET"),
+	}
+
+	dialer := &kafka.Dialer{
+		Timeout:       10 * time.Second,
+		DualStack:     true,
+		SASLMechanism: mechanism,
+		TLS: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		},
+	}
+
+	creds := credentials.NewStaticCredentialsProvider(os.Getenv("AWS_ACCESS_KEY"), os.Getenv("AWS_SECRET_KEY"), "")
+
+	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithCredentialsProvider(creds), config.WithRegion("ap-southeast-1"))
+	if err != nil {
+		logger.Error(fmt.Sprintf("cannot load AWS config: %v", err))
+		panic(err)
+	}
+
+	awsS3Client := s3.NewFromConfig(cfg)
+
 	return &Hook{
 		encodingConfig: encodingConfig,
 		writer: kafka.NewWriter(kafka.WriterConfig{
-			Brokers:      paths[1:],
-			Topic:        paths[0],
+			Brokers:      []string{bootstrapServer},
+			Topic:        os.Getenv("MESSAGES_TOPIC"),
 			Balancer:     &kafka.LeastBytes{},
 			BatchTimeout: 1 * time.Millisecond,
 			BatchBytes:   512000000,
+			Dialer:       dialer,
 		}),
 		adapters: []Adapter{
 			NewValidatorAdapter(keeper.StakingKeeper),
@@ -58,6 +95,8 @@ func NewHook(
 			ContractAccountVerifier{keeper: *keeper.WasmKeeper},
 			AuthAccountVerifier{keeper: *keeper.AccountKeeper},
 		},
+		logger:   logger,
+		uploader: manager.NewUploader(awsS3Client),
 	}
 }
 
@@ -75,15 +114,59 @@ func (h *Hook) AddAccountsInTx(accs ...string) {
 	}
 }
 
+func (h *Hook) uploadToStorage(objectPath string, msg common.Message) {
+	messageInBytes, _ := json.Marshal(msg)
+
+	h.logger.Info(fmt.Sprintf("uploading to Storage: %s", objectPath))
+	// retry this 5 times
+	var err error
+	for i := 0; i < 5; i++ {
+		if err = UploadFile(h.uploader, os.Getenv("CLAIM_CHECK_BUCKET"), objectPath, messageInBytes); err != nil {
+			h.logger.Error(fmt.Sprintf("cannot upload to Storage: %v [attempt: %d]", err, i+1))
+			time.Sleep(time.Second * time.Duration(i+1))
+			continue
+		}
+
+		break
+	}
+
+	if err != nil {
+		h.logger.Error(fmt.Sprintf("cannot upload to Storage: %v", err))
+		panic(err)
+	}
+}
+
 // FlushMessages publishes all pending messages to Kafka message queue. Blocks until completion.
 func (h *Hook) FlushMessages() {
-	kafkaMsgs := make([]kafka.Message, len(h.msgs))
+	total := len(h.msgs)
+	// 1MB is the maximum size of a message that can be sent to Kafka.
+	claimCheckThreshold := 1 * 1024 * 1024
+	kafkaMsgs := make([]kafka.Message, total)
 	for idx, msg := range h.msgs {
+		headers := []kafka.Header{
+			{Key: "index", Value: []byte(fmt.Sprint(idx))},
+			{Key: "total", Value: []byte(fmt.Sprint(total))},
+			{Key: "height", Value: []byte(fmt.Sprint(h.height))},
+		}
 		res, _ := json.Marshal(msg.Value) // Error must always be nil.
-		kafkaMsgs[idx] = kafka.Message{Key: []byte(msg.Key), Value: res}
+		if len(res) > claimCheckThreshold {
+			objectPath := fmt.Sprintf("%d-%s-%s", h.height, msg.Key, hex.EncodeToString(tmhash.Sum(res)))
+
+			// upload with retry
+			h.uploadToStorage(objectPath, msg)
+
+			value, _ := json.Marshal(common.JsDict{
+				"object_path": objectPath,
+			})
+
+			kafkaMsgs[idx] = kafka.Message{Key: []byte("CLAIM_CHECK"), Value: value, Headers: headers}
+		} else {
+			kafkaMsgs[idx] = kafka.Message{Key: []byte(msg.Key), Value: res, Headers: headers}
+		}
 	}
 	err := h.writer.WriteMessages(context.Background(), kafkaMsgs...)
 	if err != nil {
+		h.logger.Error(fmt.Sprintf("cannot write messages to Kafka: %v", err))
 		panic(err)
 	}
 }
@@ -204,6 +287,7 @@ func (h *Hook) AfterEndBlock(ctx sdk.Context, req abci.RequestEndBlock, res abci
 	}
 	h.msgs = append(modifiedMsgs, h.msgs[1:]...)
 	common.AppendMessage(&h.msgs, "COMMIT", common.JsDict{"height": req.Height})
+	h.height = req.Height
 }
 
 // BeforeCommit specifies actions to be done before commit block (app.Hook interface).

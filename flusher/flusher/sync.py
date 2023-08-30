@@ -61,16 +61,9 @@ def make_confluent_config(servers, username, password, topic_id):
     default="topic id",
     show_default=True,
 )
-@click.option(
-    "-gcs-b",
-    "--gcs-bucket",
-    help="GCS bucket",
-    default="gcs bucket",
-    show_default=True,
-)
 @click.option("-e", "--echo-sqlalchemy", "echo_sqlalchemy", is_flag=True)
 @logger.catch(reraise=True)
-def sync(db, servers, username, password, echo_sqlalchemy, topic_id, gcs_bucket):
+def sync(db, servers, username, password, echo_sqlalchemy, topic_id):
     logger.configure(handlers=[{"sink": sys.stderr, "level": "INFO", "serialize": True}])
     """Subscribe to Kafka and push the updates to the database."""
     # Set up Kafka connection
@@ -84,7 +77,7 @@ def sync(db, servers, username, password, echo_sqlalchemy, topic_id, gcs_bucket)
     while True:
         with engine.begin() as conn:
             while True:
-                handler = Handler(conn, gcs_bucket)
+                handler = Handler(conn)
                 messages = consumer.consume(num_messages=1, timeout=2.0)
                 if len(messages) == 0:
                     continue

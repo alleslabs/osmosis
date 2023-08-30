@@ -1,8 +1,9 @@
+import os
 import json
+import boto3
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from base64 import b64encode
-from google.cloud import storage
 
 from flusher.db import (
     accounts,
@@ -27,10 +28,10 @@ from flusher.db import (
     validators,
 )
 
-
 class Handler(object):
     def __init__(self, conn):
         self.conn = conn
+        self.storage = boto3.resource("s3", aws_access_key_id=os.environ['AWS_ACCESS_KEY'], aws_secret_access_key=os.environ['AWS_SECRET_KEY'])
 
     def get_transaction_id(self, tx_hash):
         return self.conn.execute(
@@ -348,9 +349,9 @@ class Handler(object):
         )
 
     def handle_claim_check(self, msg):
-        # read message from gcs
-        blob = self.bucket.blob(msg["object_path"])
-        raw_message = blob.download_as_string()
+        obj = self.storage.Object(bucket_name=os.environ["CLAIM_CHECK_BUCKET"], key=msg["object_path"])
+        response = obj.get()
+        raw_message = response["Body"].read()
         message = json.loads(raw_message)
         key = message["Key"]
         value = message["Value"]
