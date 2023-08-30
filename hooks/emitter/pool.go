@@ -263,6 +263,18 @@ func (pa *PoolAdapter) CheckMsg(ctx sdk.Context, msg sdk.Msg) {
 			pa.isSuperfluidTx = true
 			pa.poolTxs[position.PoolId] = true
 		}
+	case *superfluidtypes.MsgUnbondConvertAndStake:
+		if msg.LockId <= 0 {
+			if poolId, found := getPoolIdFromDenom(msg.SharesToConvert.GetDenom()); found {
+				pa.isBondTx = true
+				pa.poolTxs[common.Atoui(poolId)] = true
+			}
+		} else {
+			if poolId, found := pa.getPoolIdFromLockId(ctx, msg.LockId); found {
+				pa.isSuperfluidTx = true
+				pa.poolTxs[poolId] = true
+			}
+		}
 	case *clptypes.MsgCreatePosition:
 		pa.isClp = true
 		pa.poolTxs[msg.PoolId] = true
