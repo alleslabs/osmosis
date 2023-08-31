@@ -149,6 +149,7 @@ func (h *Hook) FlushMessages() {
 			{Key: "height", Value: []byte(fmt.Sprint(h.height))},
 		}
 		res, _ := json.Marshal(msg.Value) // Error must always be nil.
+		h.logger.Info(fmt.Sprintf("message size: %d", len(res)))
 		if len(res) > claimCheckThreshold {
 			objectPath := fmt.Sprintf("%d-%s-%s", h.height, msg.Key, hex.EncodeToString(tmhash.Sum(res)))
 
