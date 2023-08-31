@@ -140,7 +140,7 @@ func (h *Hook) uploadToStorage(objectPath string, msg common.Message) {
 func (h *Hook) FlushMessages() {
 	total := len(h.msgs)
 	// 1MB is the maximum size of a message that can be sent to Kafka.
-	claimCheckThreshold := 5
+	claimCheckThreshold := 1 * 1024 * 1024
 	kafkaMsgs := make([]kafka.Message, total)
 	for idx, msg := range h.msgs {
 		headers := []kafka.Header{
