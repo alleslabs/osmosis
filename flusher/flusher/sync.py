@@ -106,7 +106,7 @@ def sync(db, servers, username, password, echo_sqlalchemy, topic_id):
                     if (cc_key == "COMMIT"):
                         process_commit(conn, msg, cc_value)
                         break
-                    getattr(handler, "handle_" + key.lower())(value)
+                    getattr(handler, "handle_" + cc_key.lower())(cc_value)
                     continue
 
                 if key == "COMMIT":
