@@ -1,6 +1,3 @@
-import os
-import json
-import boto3
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from base64 import b64encode
@@ -31,7 +28,6 @@ from flusher.db import (
 class Handler(object):
     def __init__(self, conn):
         self.conn = conn
-        self.storage = boto3.resource("s3", aws_access_key_id=os.environ['AWS_ACCESS_KEY'], aws_secret_access_key=os.environ['AWS_SECRET_KEY'])
 
     def get_transaction_id(self, tx_hash):
         return self.conn.execute(
@@ -347,12 +343,3 @@ class Handler(object):
             .where(validators.c.operator_address == msg["operator_address"])
             .values(**msg)
         )
-
-    def handle_claim_check(self, msg):
-        obj = self.storage.Object(bucket_name=os.environ["CLAIM_CHECK_BUCKET"], key=msg["object_path"])
-        response = obj.get()
-        raw_message = response["Body"].read()
-        message = json.loads(raw_message)
-        key = message["Key"]
-        value = message["Value"]
-        getattr(self, "handle_" + key.lower())(value)

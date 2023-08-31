@@ -1,6 +1,8 @@
 import json
 import click
 import sys
+import boto3
+import os
 
 from confluent_kafka import Consumer, TopicPartition
 from loguru import logger
@@ -24,6 +26,14 @@ def make_confluent_config(servers, username, password, topic_id):
         "auto.offset.reset": "smallest",
         "enable.auto.offset.store": False,
     }
+
+def process_commit(conn, kafka_msg, value):
+    conn.execute(tracking.update().values(kafka_offset=kafka_msg.offset()))
+    logger.info(
+        "Committed at block {height} and Kafka offset {offset}",
+        height=value["height"],
+        offset=kafka_msg.offset(),
+    )
 
 
 @cli.command()
@@ -73,6 +83,7 @@ def sync(db, servers, username, password, echo_sqlalchemy, topic_id):
     partition = TopicPartition(topic_id, 0, tracking_info.kafka_offset + 1)
     consumer.assign([partition])
     consumer.seek(partition)
+    storage = boto3.resource("s3", aws_access_key_id=os.environ['AWS_ACCESS_KEY'], aws_secret_access_key=os.environ['AWS_SECRET_KEY'])
 
     while True:
         with engine.begin() as conn:
@@ -84,13 +95,22 @@ def sync(db, servers, username, password, echo_sqlalchemy, topic_id):
                 msg = messages[0]
                 key = msg.key().decode()
                 value = json.loads(msg.value())
-                if key == "COMMIT":
-                    conn.execute(tracking.update().values(kafka_offset=msg.offset()))
-                    logger.info(
-                        "Committed at block {height} and Kafka offset {offset}",
-                        height=value["height"],
-                        offset=msg.offset(),
-                    )
-                    break
                 logger.info("Processing {offset} {key}", offset=msg.offset(), key=key)
+                if key == "CLAIM_CHECK":
+                    obj = storage.Object(bucket_name=os.environ["CLAIM_CHECK_BUCKET"], key=value["object_path"])
+                    response = obj.get()
+                    raw_message = response["Body"].read()
+                    message = json.loads(raw_message)
+                    cc_key = message["Key"]
+                    cc_value = message["Value"]
+                    if (cc_key == "COMMIT"):
+                        process_commit(conn, msg, cc_value)
+                        break
+                    getattr(handler, "handle_" + key.lower())(value)
+                    continue
+
+                if key == "COMMIT":
+                    process_commit(conn, msg, value)
+                    break
+
                 getattr(handler, "handle_" + key.lower())(value)
