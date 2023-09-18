@@ -69,37 +69,63 @@ func (va *ValidatorAdapter) CheckMsg(_ sdk.Context, _ sdk.Msg) {
 
 // HandleMsgEvents checks for a successful message that might require validator info updating and processes them
 // correspondingly.
-func (va *ValidatorAdapter) HandleMsgEvents(ctx sdk.Context, _ []byte, msg sdk.Msg, _ common.EvMap, detail common.JsDict, kafka *[]common.Message) {
+func (va *ValidatorAdapter) HandleMsgEvents(ctx sdk.Context, _ []byte, msg sdk.Msg, evMap common.EvMap, detail common.JsDict, kafka *[]common.Message) {
+	if valAddrs, ok := evMap[stakingtypes.EventTypeCreateValidator+"."+stakingtypes.AttributeKeyValidator]; ok {
+		for _, rawValAddr := range valAddrs {
+			valAddr, _ := sdk.ValAddressFromBech32(rawValAddr)
+			val := va.emitSetValidator(ctx, valAddr, kafka)
+			detail["moniker"] = val.Description.Moniker
+			detail["identity"] = val.Description.Identity
+		}
+	}
+
+	if rates, ok := evMap[stakingtypes.EventTypeEditValidator+"."+stakingtypes.AttributeKeyCommissionRate]; ok {
+		for idx, _ := range rates {
+			rawValAddr := evMap[sdk.EventTypeMessage+"."+sdk.AttributeKeySender][idx]
+			valAddr, _ := sdk.ValAddressFromBech32(rawValAddr)
+			val := va.emitSetValidator(ctx, valAddr, kafka)
+			detail["moniker"] = val.Description.Moniker
+			detail["identity"] = val.Description.Identity
+		}
+	}
+
+	if valAddrs, ok := evMap[stakingtypes.EventTypeDelegate+"."+stakingtypes.AttributeKeyValidator]; ok {
+		for _, rawValAddr := range valAddrs {
+			valAddr, _ := sdk.ValAddressFromBech32(rawValAddr)
+			val := va.emitSetValidator(ctx, valAddr, kafka)
+			detail["moniker"] = val.Description.Moniker
+			detail["identity"] = val.Description.Identity
+		}
+	}
+
+	if valAddrs, ok := evMap[stakingtypes.EventTypeUnbond+"."+stakingtypes.AttributeKeyValidator]; ok {
+		for _, rawValAddr := range valAddrs {
+			valAddr, _ := sdk.ValAddressFromBech32(rawValAddr)
+			val := va.emitSetValidator(ctx, valAddr, kafka)
+			detail["moniker"] = val.Description.Moniker
+			detail["identity"] = val.Description.Identity
+		}
+	}
+
+	if srcValAddrs, ok := evMap[stakingtypes.EventTypeRedelegate+"."+stakingtypes.AttributeKeySrcValidator]; ok {
+		for _, rawSrcValAddr := range srcValAddrs {
+			valAddr, _ := sdk.ValAddressFromBech32(rawSrcValAddr)
+			val := va.emitSetValidator(ctx, valAddr, kafka)
+			detail["src_moniker"] = val.Description.Moniker
+			detail["src_identity"] = val.Description.Identity
+		}
+	}
+
+	if dstValAddrs, ok := evMap[stakingtypes.EventTypeRedelegate+"."+stakingtypes.AttributeKeyDstValidator]; ok {
+		for _, rawDstValAddr := range dstValAddrs {
+			valAddr, _ := sdk.ValAddressFromBech32(rawDstValAddr)
+			val := va.emitSetValidator(ctx, valAddr, kafka)
+			detail["dst_moniker"] = val.Description.Moniker
+			detail["dst_identity"] = val.Description.Identity
+		}
+	}
+
 	switch msg := msg.(type) {
-	case *stakingtypes.MsgCreateValidator:
-		valAddr, _ := sdk.ValAddressFromBech32(msg.ValidatorAddress)
-		val := va.emitSetValidator(ctx, valAddr, kafka)
-		detail["moniker"] = val.Description.Moniker
-		detail["identity"] = val.Description.Identity
-	case *stakingtypes.MsgEditValidator:
-		valAddr, _ := sdk.ValAddressFromBech32(msg.ValidatorAddress)
-		val := va.emitSetValidator(ctx, valAddr, kafka)
-		detail["moniker"] = val.Description.Moniker
-		detail["identity"] = val.Description.Identity
-	case *stakingtypes.MsgDelegate:
-		valAddr, _ := sdk.ValAddressFromBech32(msg.ValidatorAddress)
-		val := va.emitSetValidator(ctx, valAddr, kafka)
-		detail["moniker"] = val.Description.Moniker
-		detail["identity"] = val.Description.Identity
-	case *stakingtypes.MsgUndelegate:
-		valAddr, _ := sdk.ValAddressFromBech32(msg.ValidatorAddress)
-		val := va.emitSetValidator(ctx, valAddr, kafka)
-		detail["moniker"] = val.Description.Moniker
-		detail["identity"] = val.Description.Identity
-	case *stakingtypes.MsgBeginRedelegate:
-		valAddr, _ := sdk.ValAddressFromBech32(msg.ValidatorSrcAddress)
-		val, _ := va.keeper.GetValidator(ctx, valAddr)
-		detail["src_moniker"] = val.Description.Moniker
-		detail["src_identity"] = val.Description.Identity
-		valAddr, _ = sdk.ValAddressFromBech32(msg.ValidatorDstAddress)
-		val, _ = va.keeper.GetValidator(ctx, valAddr)
-		detail["dst_moniker"] = val.Description.Moniker
-		detail["dst_identity"] = val.Description.Identity
 	case *slashingtypes.MsgUnjail:
 		valAddr, _ := sdk.ValAddressFromBech32(msg.ValidatorAddr)
 		val := va.emitSetValidator(ctx, valAddr, kafka)
