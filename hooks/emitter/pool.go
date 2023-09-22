@@ -905,6 +905,9 @@ func (pa *PoolAdapter) handleMsgBeginUnlockingAll(ctx sdk.Context, evMap common.
 func (pa *PoolAdapter) flushUpdatePoolStats(ctx sdk.Context, kafka *[]common.Message) {
 	for poolId := range pa.poolInBlock {
 		poolInfo, _ := pa.poolmanagerKeeper.GetPool(ctx, poolId)
+		if poolInfo == nil {
+			continue
+		}
 		switch pool := poolInfo.(type) {
 		case *balancer.Pool:
 			weights := make([]common.JsDict, 0)
