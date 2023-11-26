@@ -224,6 +224,7 @@ func NewOsmosisApp(
 	}
 
 	app.homePath = homePath
+	dataDir := filepath.Join(homePath, "data")
 	wasmDir := filepath.Join(homePath, "wasm")
 	wasmConfig, err := wasm.ReadWasmConfig(appOpts)
 	// Uncomment this for debugging contracts. In the future this could be made into a param passed by the tests
@@ -245,6 +246,7 @@ func NewOsmosisApp(
 		appCodec,
 		bApp,
 		maccPerms,
+		dataDir,
 		wasmDir,
 		wasmConfig,
 		wasmEnabledProposals,
