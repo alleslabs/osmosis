@@ -410,6 +410,7 @@ func (app *OsmosisApp) Name() string { return app.BaseApp.Name() }
 // BeginBlocker application updates every begin block.
 func (app *OsmosisApp) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
 	BeginBlockForks(ctx, app)
+	app.DeliverContext = ctx
 	res := app.mm.BeginBlock(ctx, req)
 	cacheContext, _ := ctx.CacheContext()
 	app.hooks.AfterBeginBlock(cacheContext, req, res)
