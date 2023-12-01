@@ -223,7 +223,13 @@ proposals = sa.Table(
     Column("voting_time", CustomDateTime),
     Column("voting_end_time", CustomDateTime),
     Column("content", sa.JSON, nullable=True),
+    Column("total_deposit", sa.JSON),
+    Column("yes", sa.BigInteger),
+    Column("no", sa.BigInteger),
+    Column("abstain", sa.BigInteger),
+    Column("no_with_veto", sa.BigInteger),
     Column("is_expedited", sa.Boolean),
+    Column("version", sa.String),
     Column(
         "resolved_height",
         sa.Integer,
@@ -231,6 +237,30 @@ proposals = sa.Table(
         index=True,
         nullable=True,
     ),
+)
+
+proposal_deposits = sa.Table(
+    "proposal_deposits",
+    metadata,
+    Column("proposal_id", sa.Integer, sa.ForeignKey("proposals.id")),
+    Column("transaction_id", sa.Integer, sa.ForeignKey("transactions.id"), nullable=True),
+    Column("depositor", sa.Integer, sa.ForeignKey("accounts.id")),
+    Column("amount", sa.JSON),
+)
+
+proposal_votes = sa.Table(
+    "proposal_votes",
+    metadata,
+    Column("proposal_id", sa.Integer, sa.ForeignKey("proposals.id")),
+    Column("transaction_id", sa.Integer, sa.ForeignKey("transactions.id"), nullable=True),
+    Column("voter", sa.Integer, sa.ForeignKey("accounts.id")),
+    Column("is_vote_weighted", sa.Boolean),
+    Column("is_validator", sa.Boolean),
+    Column("validator_address", sa.String, sa.ForeignKey("validators.operator_address"), nullable=True),
+    Column("yes", sa.Numeric),
+    Column("no", sa.Numeric),
+    Column("abstain", sa.Numeric),
+    Column("no_with_veto", sa.Numeric),
 )
 
 code_proposals = sa.Table(

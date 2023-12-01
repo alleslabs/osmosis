@@ -11,6 +11,8 @@ from flusher.db import (
     contracts,
     contract_transactions,
     proposals,
+    proposal_deposits,
+    proposal_votes,
     code_proposals,
     contract_proposals,
     contract_histories,
@@ -260,6 +262,18 @@ class Handler(object):
         for col in proposals.primary_key.columns.values():
             condition = (col == msg[col.name]) & condition
         self.conn.execute(proposals.update().where(condition).values(**msg))
+
+    def handle_new_proposal_deposit(self, msg):
+        msg["transaction_id"] = self.get_transaction_id(msg["tx_hash"])
+        del msg["tx_hash"]
+        msg["depositor"] = self.get_account_id(msg["depositor"])
+        self.conn.execute(proposal_deposits.insert(), msg)
+
+    def handle_new_proposal_vote(self, msg):
+        msg["transaction_id"] = self.get_transaction_id(msg["tx_hash"])
+        del msg["tx_hash"]
+        msg["voter"] = self.get_account_id(msg["voter"])
+        self.conn.execute(proposal_votes.insert(), msg)
 
     def handle_new_code_proposal(self, msg):
         self.conn.execute(code_proposals.insert(), msg)
