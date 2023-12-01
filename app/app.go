@@ -2,8 +2,6 @@ package app
 
 import (
 	"fmt"
-	"github.com/osmosis-labs/osmosis/v21/hooks/common"
-	"github.com/osmosis-labs/osmosis/v21/hooks/emitter"
 	"io"
 	"net/http"
 	"os"
@@ -97,6 +95,9 @@ import (
 	_ "github.com/osmosis-labs/osmosis/v21/client/docs/statik"
 	"github.com/osmosis-labs/osmosis/v21/ingest"
 	"github.com/osmosis-labs/osmosis/v21/x/mint"
+
+	"github.com/osmosis-labs/osmosis/v21/hooks/common"
+	"github.com/osmosis-labs/osmosis/v21/hooks/emitter"
 )
 
 const appName = "OsmosisApp"
