@@ -163,6 +163,12 @@ func (wa *WasmAdapter) CheckMsg(_ sdk.Context, msg sdk.Msg) {
 		wa.isInstantiateTx = true
 	case *wasmtypes.MsgUpdateContractLabel:
 		wa.contractTxs[msg.Contract] = false
+	case *wasmtypes.MsgStoreAndInstantiateContract:
+		wa.isStoreCodeTx = true
+		wa.isInstantiateTx = true
+	case *wasmtypes.MsgStoreAndMigrateContract:
+		wa.isStoreCodeTx = true
+		wa.isMigrate = true
 	case *channeltypes.MsgRecvPacket:
 		if contractAddr, err := wasm.ContractFromPortID(msg.Packet.DestinationPort); err == nil {
 			wa.contractTxs[contractAddr.String()] = true
