@@ -64,24 +64,24 @@ const (
 	spotPriceErrorFmtStr        = "error calculating spot price for denom %s, %s"
 
 	// placeholder value to disable route updates at the end of every block.
-	routeIngestDisablePlaceholder = int64(0)
+	routeIngestDisablePlaceholder = 0
 )
 
 var uosmoPrecisionBigDec = osmomath.NewBigDec(uosmoPrecision)
 
 // NewPoolIngester returns a new pool ingester.
-func NewPoolIngester(poolsRepository mvc.PoolsRepository, routerRepository mvc.RouterRepository, tokensUseCase domain.TokensUsecase, repositoryManager mvc.TxManager, routerConfig domain.RouterConfig, gammKeeper common.PoolKeeper, concentratedKeeper common.ConcentratedKeeper, cosmwasmKeeper common.CosmWasmPoolKeeper, bankKeeper common.BankKeeper, protorevKeeper common.ProtorevKeeper, poolManagerKeeper common.PoolManagerKeeper) mvc.AtomicIngester {
+func NewPoolIngester(poolsRepository mvc.PoolsRepository, routerRepository mvc.RouterRepository, tokensUseCase domain.TokensUsecase, repositoryManager mvc.TxManager, routerConfig domain.RouterConfig, keepers common.SQSIngestKeepers) mvc.AtomicIngester {
 	return &poolIngester{
 		poolsRepository:    poolsRepository,
 		routerRepository:   routerRepository,
 		tokensUseCase:      tokensUseCase,
 		repositoryManager:  repositoryManager,
-		gammKeeper:         gammKeeper,
-		concentratedKeeper: concentratedKeeper,
-		cosmWasmKeeper:     cosmwasmKeeper,
-		bankKeeper:         bankKeeper,
-		protorevKeeper:     protorevKeeper,
-		poolManagerKeeper:  poolManagerKeeper,
+		gammKeeper:         keepers.GammKeeper,
+		concentratedKeeper: keepers.ConcentratedKeeper,
+		cosmWasmKeeper:     keepers.CosmWasmPoolKeeper,
+		bankKeeper:         keepers.BankKeeper,
+		protorevKeeper:     keepers.ProtorevKeeper,
+		poolManagerKeeper:  keepers.PoolManagerKeeper,
 		routerConfig:       routerConfig,
 	}
 }
@@ -178,7 +178,7 @@ func (pi *poolIngester) processPoolState(ctx sdk.Context, tx mvc.Tx) error {
 	}
 
 	// Update routes every RouteUpdateHeightInterval blocks unless RouteUpdateHeightInterval is 0.
-	if pi.routerConfig.RouteUpdateHeightInterval > routeIngestDisablePlaceholder && ctx.BlockHeight()%pi.routerConfig.RouteUpdateHeightInterval == 0 {
+	if pi.routerConfig.RouteUpdateHeightInterval > routeIngestDisablePlaceholder && ctx.BlockHeight()%int64(pi.routerConfig.RouteUpdateHeightInterval) == 0 {
 		allPools := make([]domain.PoolI, 0, len(allPoolsParsed))
 
 		pi.logger.Info("getting routes for pools", zap.Int64("height", ctx.BlockHeight()))
@@ -320,7 +320,7 @@ func (pi *poolIngester) convertPool(
 			}
 
 			// Scale on-chain spot price to the correct token precision.
-			precisionMultiplier := osmomath.NewBigDec(int64(basePrecison)).Quo(uosmoPrecisionBigDec)
+			precisionMultiplier := uosmoPrecisionBigDec.Quo(osmomath.NewBigDec(int64(basePrecison)))
 
 			uosmoBaseAssetSpotPrice = uosmoBaseAssetSpotPrice.Mul(precisionMultiplier)
 
@@ -330,7 +330,8 @@ func (pi *poolIngester) convertPool(
 			}
 		}
 
-		osmoPoolTVL = osmoPoolTVL.Add(osmomath.NewBigDecFromBigInt(balance.Amount.BigInt()).MulMut(routingInfo.Price).Dec().TruncateInt())
+		tvlAddition := osmomath.BigDecFromSDKInt(balance.Amount).QuoMut(routingInfo.Price).Dec().TruncateInt()
+		osmoPoolTVL = osmoPoolTVL.Add(tvlAddition)
 	}
 
 	// Get pool denoms. Although these can be inferred from balances, this is safer.
