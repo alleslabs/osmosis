@@ -98,6 +98,10 @@ import (
 
 	hookscommon "github.com/osmosis-labs/osmosis/v21/hooks/common"
 	"github.com/osmosis-labs/osmosis/v21/hooks/emitter"
+
+	"github.com/osmosis-labs/osmosis/v21/ingest/sqs"
+
+	"github.com/osmosis-labs/osmosis/v21/ingest/sqs/pools/common"
 )
 
 const appName = "OsmosisApp"
@@ -262,6 +266,28 @@ func NewOsmosisApp(
 	// Initialize the ingest manager for propagating data to external sinks.
 	app.IngestManager = ingest.NewIngestManager()
 
+	sqsConfig := sqs.NewConfigFromOptions(appOpts)
+
+	// Initialize the SQS ingester if it is enabled.
+	if sqsConfig.IsEnabled {
+		sqsKeepers := common.SQSIngestKeepers{
+			GammKeeper:         app.GAMMKeeper,
+			CosmWasmPoolKeeper: app.CosmwasmPoolKeeper,
+			BankKeeper:         app.BankKeeper,
+			ProtorevKeeper:     app.ProtoRevKeeper,
+			PoolManagerKeeper:  app.PoolManagerKeeper,
+			ConcentratedKeeper: app.ConcentratedLiquidityKeeper,
+		}
+
+		sqsIngester, err := sqsConfig.Initialize(appCodec, sqsKeepers)
+		if err != nil {
+			panic(err)
+		}
+
+		// Set the sidecar query server ingester to the ingest manager.
+		app.IngestManager.RegisterIngester(sqsIngester)
+	}
+
 	// TODO: There is a bug here, where we register the govRouter routes in InitNormalKeepers and then
 	// call setupHooks afterwards. Therefore, if a gov proposal needs to call a method and that method calls a
 	// hook, we will get a nil pointer dereference error due to the hooks in the keeper not being
@@ -310,7 +336,7 @@ func NewOsmosisApp(
 
 	app.sm = module.NewSimulationManager(
 		auth.NewAppModule(appCodec, *app.AccountKeeper, authsims.RandomGenesisAccounts, app.GetSubspace(authtypes.ModuleName)),
-		bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper, app.GetSubspace(banktypes.ModuleName)),
+		bank.NewAppModule(appCodec, *app.BankKeeper, app.AccountKeeper, app.GetSubspace(banktypes.ModuleName)),
 		capability.NewAppModule(appCodec, *app.CapabilityKeeper, false),
 		authzmodule.NewAppModule(appCodec, *app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 		gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper, app.GetSubspace(govtypes.ModuleName)),

@@ -1,13 +1,13 @@
 package domain
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/osmosis-labs/osmosis/osmomath"
+	"github.com/osmosis-labs/osmosis/v21/ingest/sqs/domain/json"
 	poolmanagertypes "github.com/osmosis-labs/osmosis/v21/x/poolmanager/types"
 )
 
@@ -78,15 +78,17 @@ type Quote interface {
 }
 
 type RouterConfig struct {
-	PreferredPoolIDs   []uint64
-	MaxPoolsPerRoute   int
-	MaxRoutes          int
-	MaxSplitRoutes     int
-	MaxSplitIterations int
+	PreferredPoolIDs   []uint64 `mapstructure:"preferred_pool_ids"`
+	MaxPoolsPerRoute   int      `mapstructure:"max_pools_per_route"`
+	MaxRoutes          int      `mapstructure:"max_routes"`
+	MaxSplitRoutes     int      `mapstructure:"max_split_routes"`
+	MaxSplitIterations int      `mapstructure:"max_split_iterations"`
 	// Denominated in OSMO (not uosmo)
-	MinOSMOLiquidity          int
-	RouteUpdateHeightInterval int64
-	RouteCacheEnabled         bool
+	MinOSMOLiquidity          int  `mapstructure:"min_osmo_liquidity"`
+	RouteUpdateHeightInterval int  `mapstructure:"route_update_height_interval"`
+	RouteCacheEnabled         bool `mapstructure:"route_cache_enabled"`
+	// The number of seconds to cache routes for before expiry.
+	RouteCacheExpirySeconds uint64 `mapstructure:"route_cache_expiry_seconds"`
 }
 
 // DenomPair encapsulates a pair of denoms.
@@ -151,7 +153,7 @@ func (tfm TakerFeeMap) Has(denom0, denom1 string) bool {
 // GetTakerFee returns the taker fee for the given denoms.
 // It sorts the denoms lexicographically before looking up the taker fee.
 // Returns error if the taker fee is not found.
-func (tfm TakerFeeMap) GetTakerFee(denom0, denom1 string) (osmomath.Dec, error) {
+func (tfm TakerFeeMap) GetTakerFee(denom0, denom1 string) osmomath.Dec {
 	// Ensure increasing lexicographic order.
 	if denom1 < denom0 {
 		denom0, denom1 = denom1, denom0
@@ -160,13 +162,10 @@ func (tfm TakerFeeMap) GetTakerFee(denom0, denom1 string) (osmomath.Dec, error) 
 	takerFee, found := tfm[DenomPair{Denom0: denom0, Denom1: denom1}]
 
 	if !found {
-		return osmomath.Dec{}, TakerFeeNotFoundForDenomPairError{
-			Denom0: denom0,
-			Denom1: denom1,
-		}
+		return DefaultTakerFee
 	}
 
-	return takerFee, nil
+	return takerFee
 }
 
 // SetTakerFee sets the taker fee for the given denoms.
@@ -178,6 +177,13 @@ func (tfm TakerFeeMap) SetTakerFee(denom0, denom1 string, takerFee osmomath.Dec)
 	}
 
 	tfm[DenomPair{Denom0: denom0, Denom1: denom1}] = takerFee
+}
+
+// TakerFeeForPair represents the taker fee for a pair of tokens
+type TakerFeeForPair struct {
+	Denom0   string
+	Denom1   string
+	TakerFee osmomath.Dec
 }
 
 var DefaultTakerFee = osmomath.MustNewDecFromStr("0.001000000000000000")

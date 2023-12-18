@@ -12,6 +12,7 @@ import (
 	"github.com/osmosis-labs/osmosis/osmoutils/osmoassert"
 	"github.com/osmosis-labs/osmosis/v21/ingest/sqs/domain"
 	"github.com/osmosis-labs/osmosis/v21/ingest/sqs/domain/mocks"
+	"github.com/osmosis-labs/osmosis/v21/ingest/sqs/domain/mvc"
 	"github.com/osmosis-labs/osmosis/v21/ingest/sqs/log"
 	poolsusecase "github.com/osmosis-labs/osmosis/v21/ingest/sqs/pools/usecase"
 	"github.com/osmosis-labs/osmosis/v21/ingest/sqs/router/usecase"
@@ -551,35 +552,136 @@ func (s *RouterTestSuite) TestValidateAndFilterRoutes() {
 	}
 }
 
-// Validates that USDT for UMEE quote does not cause an error.
-// This pair originally caused an error due to the lack of filtering that was
-// added later.
-func (s *RouterTestSuite) TestGetBestSplitRoutesQuote_Mainnet_USDTUMEE() {
-	config := defaultRouterConfig
-	config.MaxPoolsPerRoute = 5
-	config.MaxRoutes = 10
+// Validates that quotes constructed from mainnet state can be computed with no error
+// for selected pairs.
+func (s *RouterTestSuite) TestGetOptimalQuote() {
+	tests := map[string]struct {
+		tokenInDenom  string
+		tokenOutDenom string
 
-	var (
-		amountIn = osmomath.NewInt(1000_000_000)
-	)
+		maxPoolsPerRoute   int
+		maxRoutes          int
+		maxSplitRoutes     int
+		maxSplitIterations int
 
-	router, tickMap, takerFeeMap := s.setupMainnetRouter(config)
+		amountIn osmomath.Int
 
-	routes := s.constructRoutesFromMainnetPools(router, USDT, UMEE, tickMap, takerFeeMap)
+		expectedRoutesCount int
+	}{
+		// This pair originally caused an error due to the lack of filtering that was
+		// added later.
+		"usdt for umee": {
+			tokenInDenom:  USDT,
+			tokenOutDenom: UMEE,
 
-	quote, err := router.GetOptimalQuote(sdk.NewCoin(USDT, amountIn), routes)
+			maxPoolsPerRoute: 5,
+			maxRoutes:        10,
 
-	// We only validate that error does not occur without actually validating the quote.
-	s.Require().NoError(err)
+			amountIn: osmomath.NewInt(1000_000_000),
 
-	// Expecting 2 routes based on the mainnet state
-	// 1: 1205
-	// 2: 1110 -> 1077
-	quoteRoutes := quote.GetRoute()
-	s.Require().Len(quoteRoutes, 3)
+			expectedRoutesCount: 1,
+		},
+		"uosmo for uion": {
+			tokenInDenom:  UOSMO,
+			tokenOutDenom: UION,
+
+			maxPoolsPerRoute: 5,
+			maxRoutes:        10,
+
+			amountIn: osmomath.NewInt(5000000),
+
+			expectedRoutesCount: 1,
+		},
+		"usdt for atom": {
+			tokenInDenom:  USDT,
+			tokenOutDenom: ATOM,
+
+			maxPoolsPerRoute: 5,
+			maxRoutes:        10,
+			maxSplitRoutes:   3,
+
+			amountIn: osmomath.NewInt(5000000),
+
+			expectedRoutesCount: 1,
+		},
+		"uakt for umee": {
+			tokenInDenom:  AKT,
+			tokenOutDenom: UMEE,
+
+			maxPoolsPerRoute: 4,
+			maxRoutes:        10,
+			maxSplitRoutes:   3,
+
+			amountIn: osmomath.NewInt(100_000_000),
+
+			expectedRoutesCount: 2,
+		},
+		// This test validates that with a greater max routes value, SQS is able to find
+		// the path from umee to stOsmo
+		"umee for stosmo": {
+			tokenInDenom:  UMEE,
+			tokenOutDenom: stOSMO,
+
+			maxPoolsPerRoute: 4,
+			maxRoutes:        20,
+			maxSplitRoutes:   3,
+
+			amountIn: osmomath.NewInt(1_000_000),
+
+			expectedRoutesCount: 1,
+		},
+
+		"atom for akt": {
+			tokenInDenom:  ATOM,
+			tokenOutDenom: AKT,
+
+			maxPoolsPerRoute: 4,
+			maxRoutes:        20,
+			maxSplitRoutes:   3,
+
+			amountIn: osmomath.NewInt(1_000_000),
+
+			expectedRoutesCount: 1,
+		},
+	}
+
+	for name, tc := range tests {
+		tc := tc
+		s.Run(name, func() {
+			// Setup router config
+			config := defaultRouterConfig
+			config.MaxPoolsPerRoute = tc.maxPoolsPerRoute
+			config.MaxRoutes = tc.maxRoutes
+			if tc.maxSplitRoutes > 0 {
+				config.MaxSplitRoutes = tc.maxSplitRoutes
+			}
+
+			// Setup mainnet router
+			router, tickMap, takerFeeMap := s.setupMainnetRouter(config)
+
+			// Mock router use case.
+			routerUsecase, _ := s.setupRouterAndPoolsUsecase(router, tc.tokenInDenom, tc.tokenOutDenom, tickMap, takerFeeMap)
+
+			// System under test
+			quote, err := routerUsecase.GetOptimalQuote(context.Background(), sdk.NewCoin(tc.tokenInDenom, tc.amountIn), tc.tokenOutDenom)
+
+			// We only validate that error does not occur without actually validating the quote.
+			s.Require().NoError(err)
+
+			// TODO: update mainnet state and validate the quote for each test stricter.
+			quoteRoutes := quote.GetRoute()
+			s.Require().Len(quoteRoutes, tc.expectedRoutesCount)
+
+			// Validate that the quote is not nil
+			s.Require().NotNil(quote.GetAmountOut())
+		})
+	}
 }
 
-func (s *RouterTestSuite) TestGetBestSplitRoutesQuote_Mainnet_UOSMOUION() {
+// Validates custom quote for UOSMO to UION.
+// That is, with the given pool ID, we expect the quote to be routed through the route
+// that matches these pool IDs. Errors otherwise.
+func (s *RouterTestSuite) TestGetCustomQuote_Mainnet_UOSMOUION() {
 	config := defaultRouterConfig
 	config.MaxPoolsPerRoute = 5
 	config.MaxRoutes = 10
@@ -590,82 +692,39 @@ func (s *RouterTestSuite) TestGetBestSplitRoutesQuote_Mainnet_UOSMOUION() {
 
 	router, tickMap, takerFeeMap := s.setupMainnetRouter(config)
 
-	routes := s.constructRoutesFromMainnetPools(router, UOSMO, UION, tickMap, takerFeeMap)
+	// Setup router repository mock
+	routerRepositoryMock := mocks.RedisRouterRepositoryMock{
+		TakerFees: takerFeeMap,
+	}
+	routerusecase.WithRouterRepository(router, &routerRepositoryMock)
 
-	quote, err := router.GetOptimalQuote(sdk.NewCoin(UOSMO, amountIn), routes)
+	// Setup pools usecase mock.
+	poolsRepositoryMock := mocks.RedisPoolsRepositoryMock{
+		Pools:     router.GetSortedPools(),
+		TickModel: tickMap,
+	}
+	poolsUsecase := poolsusecase.NewPoolsUsecase(time.Hour, &poolsRepositoryMock, nil)
+	routerusecase.WithPoolsUsecase(router, poolsUsecase)
 
-	// We only validate that error does not occur without actually validating the quote.
+	routerUsecase := routerusecase.NewRouterUsecase(time.Hour, &routerRepositoryMock, poolsUsecase, config, &log.NoOpLogger{})
+
+	// This pool ID is second best: https://app.osmosis.zone/pool/2
+	// The top one is https://app.osmosis.zone/pool/1110 which is not selected
+	// due to custom parameter.
+	const expectedPoolID = uint64(2)
+	poolIDs := []uint64{expectedPoolID}
+
+	quote, err := routerUsecase.GetCustomQuote(context.Background(), sdk.NewCoin(UOSMO, amountIn), UION, poolIDs)
+
 	s.Require().NoError(err)
-
-	// Expecting 1 route based on mainnet state
-	s.Require().Len(quote.GetRoute(), 1)
-
-	// Should be pool 2 based on state at the time of writing.
-	// If new state is added, review the quote against mainnet.
-	s.Require().Len(quote.GetRoute()[0].GetPools(), 1)
-
-	// Validate that the pool is pool 2
-	s.Require().Equal(uint64(2), quote.GetRoute()[0].GetPools()[0].GetId())
-}
-
-func (s *RouterTestSuite) TestGetBestSplitRoutesQuote_Mainnet_USDTATOM() {
-	config := defaultRouterConfig
-	config.MaxPoolsPerRoute = 4
-	config.MaxRoutes = 5
-	config.MaxSplitRoutes = 3
-	config.MaxSplitIterations = 10
-
-	var (
-		amountIn = osmomath.NewInt(1000000)
-	)
-
-	router, tickMap, takerFeeMap := s.setupMainnetRouter(config)
-
-	routes := s.constructRoutesFromMainnetPools(router, USDT, ATOM, tickMap, takerFeeMap)
-
-	quote, err := router.GetOptimalQuote(sdk.NewCoin(USDT, amountIn), routes)
-
-	// We only validate that error does not occur without actually validating the quote.
-	s.Require().NoError(err)
-
 	s.Require().NotNil(quote)
 
-	s.Require().Greater(len(quote.GetRoute()), 0)
-}
+	s.Require().Len(quote.GetRoute(), 1)
+	routePools := quote.GetRoute()[0].GetPools()
+	s.Require().Len(routePools, 1)
 
-func (s *RouterTestSuite) TestGetBestSplitRoutesQuote_Mainnet_AKTUMEE() {
-	config := defaultRouterConfig
-	config.MaxPoolsPerRoute = 4
-	config.MaxRoutes = 10
-	config.MaxSplitRoutes = 3
-
-	var (
-		amountIn = osmomath.NewInt(100_000_000)
-	)
-
-	router, tickMap, takerFeeMap := s.setupMainnetRouter(config)
-
-	routes := s.constructRoutesFromMainnetPools(router, AKT, UMEE, tickMap, takerFeeMap)
-
-	quote, err := router.GetOptimalQuote(sdk.NewCoin(AKT, amountIn), routes)
-
-	// We only validate that error does not occur without actually validating the quote.
-	s.Require().NoError(err)
-
-	// Expecting 2 routes based on mainnet state
-	s.Require().Len(quote.GetRoute(), 2)
-
-	// TODO: need to compare this quote against mainnet state
-
-	route := quote.GetRoute()[0]
-	// Expecting 2 pools in the route
-	s.Require().Len(route.GetPools(), 2)
-
-	// Validate that the pool is pool 1093
-	s.Require().Equal(uint64(1093), route.GetPools()[0].GetId())
-
-	// Validate that the pool is pool 1110
-	s.Require().Equal(uint64(1110), route.GetPools()[1].GetId())
+	// Validate that the pool is pool 2
+	s.Require().Equal(expectedPoolID, routePools[0].GetId())
 }
 
 // Generates routes from mainnet state by:
@@ -675,6 +734,20 @@ func (s *RouterTestSuite) TestGetBestSplitRoutesQuote_Mainnet_AKTUMEE() {
 // - converting candidate routes to routes with all the necessary data.
 // COTRACT: router is initialized with setupMainnetRouter(...) or setupDefaultMainnetRouter(...)
 func (s *RouterTestSuite) constructRoutesFromMainnetPools(router *routerusecase.Router, tokenInDenom, tokenOutDenom string, tickMap map[uint64]domain.TickModel, takerFeeMap domain.TakerFeeMap) []route.RouteImpl {
+	_, poolsUsecase := s.setupRouterAndPoolsUsecase(router, tokenInDenom, tokenOutDenom, tickMap, takerFeeMap)
+
+	candidateRoutes, err := router.GetCandidateRoutes(tokenInDenom, tokenOutDenom)
+	s.Require().NoError(err)
+
+	routes, err := poolsUsecase.GetRoutesFromCandidates(context.Background(), candidateRoutes, takerFeeMap, tokenInDenom, tokenOutDenom)
+	s.Require().NoError(err)
+
+	return routes
+}
+
+// Sets up and returns usecases for router and pools by mocking the mainnet data
+// from json files.
+func (s *RouterTestSuite) setupRouterAndPoolsUsecase(router *routerusecase.Router, tokenInDenom, tokenOutDenom string, tickMap map[uint64]domain.TickModel, takerFeeMap domain.TakerFeeMap) (mvc.RouterUsecase, mvc.PoolsUsecase) {
 	// Setup router repository mock
 	routerRepositoryMock := mocks.RedisRouterRepositoryMock{}
 	routerusecase.WithRouterRepository(router, &routerRepositoryMock)
@@ -687,11 +760,7 @@ func (s *RouterTestSuite) constructRoutesFromMainnetPools(router *routerusecase.
 	poolsUsecase := poolsusecase.NewPoolsUsecase(time.Hour, &poolsRepositoryMock, nil)
 	routerusecase.WithPoolsUsecase(router, poolsUsecase)
 
-	candidateRoutes, err := router.GetCandidateRoutes(tokenInDenom, tokenOutDenom)
-	s.Require().NoError(err)
+	routerUsecase := usecase.NewRouterUsecase(time.Hour, &routerRepositoryMock, poolsUsecase, defaultRouterConfig, &log.NoOpLogger{})
 
-	routes, err := poolsUsecase.GetRoutesFromCandidates(context.Background(), candidateRoutes, takerFeeMap, tokenInDenom, tokenOutDenom)
-	s.Require().NoError(err)
-
-	return routes
+	return routerUsecase, poolsUsecase
 }
