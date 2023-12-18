@@ -96,7 +96,7 @@ import (
 	"github.com/osmosis-labs/osmosis/v21/ingest"
 	"github.com/osmosis-labs/osmosis/v21/x/mint"
 
-	"github.com/osmosis-labs/osmosis/v21/hooks/common"
+	hookscommon "github.com/osmosis-labs/osmosis/v21/hooks/common"
 	"github.com/osmosis-labs/osmosis/v21/hooks/emitter"
 )
 
@@ -161,7 +161,7 @@ type OsmosisApp struct {
 	DeliverContext sdk.Context
 
 	// List of hooks
-	hooks common.Hooks
+	hooks hookscommon.Hooks
 }
 
 // init sets DefaultNodeHome to default osmosisd install location.
@@ -363,7 +363,7 @@ func NewOsmosisApp(
 	app.SetEndBlocker(app.EndBlocker)
 
 	// Initialize emitter hook and append to the app hooks.
-	app.hooks = make(common.Hooks, 0)
+	app.hooks = make(hookscommon.Hooks, 0)
 	if withEmitter != "" {
 		app.hooks = append(app.hooks, emitter.NewHook(encodingConfig, app.AppKeepers, withEmitter))
 	}
