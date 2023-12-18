@@ -352,8 +352,8 @@ func (pa *PoolAdapter) HandleMsgEvents(
 			}
 		}
 	default:
+		pa.handleCreatePoolEvents(ctx, txHash, msg.GetSigners()[0], evMap, kafka)
 		if !pa.onlyPoolMsgTx {
-			pa.handleCreatePoolEvents(ctx, txHash, msg.GetSigners()[0], evMap, kafka)
 			pa.handleNonPoolMsgsPoolActionEvents(ctx, evMap, kafka)
 		}
 	}
