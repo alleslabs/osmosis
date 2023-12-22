@@ -82,7 +82,8 @@ func (va *ValidatorAdapter) HandleMsgEvents(ctx sdk.Context, _ []byte, msg sdk.M
 	if rates, ok := evMap[stakingtypes.EventTypeEditValidator+"."+stakingtypes.AttributeKeyCommissionRate]; ok {
 		for idx, _ := range rates {
 			rawValAddr := evMap[sdk.EventTypeMessage+"."+sdk.AttributeKeySender][idx]
-			valAddr, _ := sdk.ValAddressFromBech32(rawValAddr)
+			accAddr, _ := sdk.AccAddressFromBech32(rawValAddr)
+			valAddr := sdk.ValAddress(accAddr)
 			val := va.emitSetValidator(ctx, valAddr, kafka)
 			detail["moniker"] = val.Description.Moniker
 			detail["identity"] = val.Description.Identity
