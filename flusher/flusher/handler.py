@@ -117,7 +117,7 @@ class Handler(object):
         ).scalar()
 
     def handle_new_block(self, msg):
-        self.conn.execute(blocks.insert(), msg)
+        self.conn.execute(insert(blocks).values(msg).on_conflict_do_update(constraint='blocks_pkey', set_=msg))
 
     def handle_new_transaction(self, msg):
         msg["memo"] = msg["memo"].replace("\x00", "\uFFFD")
@@ -160,7 +160,7 @@ class Handler(object):
             select([accounts.c.id]).where(accounts.c.address == msg["address"])
         ).scalar()
         if id is None:
-            self.conn.execute(accounts.insert(), msg)
+            self.conn.execute(insert(accounts).values(msg).on_conflict_do_update(constraint='accounts_pkey', set_=msg))
         else:
             msg["id"] = id
             self.conn.execute(accounts.update(accounts.c.id == msg["id"]).values(**msg))

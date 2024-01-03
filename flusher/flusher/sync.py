@@ -64,7 +64,7 @@ def sync(commit_interval, db, servers, echo_sqlalchemy):
                 value = json.loads(msg.value)
                 if key == "COMMIT":
                     if value["height"] % commit_interval == 0:
-                        conn.execute(tracking.update().values(kafka_offset=msg.offset))
+                        conn.execute(tracking.update().values(kafka_offset=msg.offset, latest_informative_block_height=value["height"]))
                         logger.info(
                             "Committed at block {} and Kafka offset {}",
                             value["height"],
