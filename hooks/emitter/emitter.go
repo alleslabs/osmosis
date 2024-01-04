@@ -77,15 +77,19 @@ func (h *Hook) AddAccountsInTx(accs ...string) {
 
 // FlushMessages publishes all pending messages to Kafka message queue. Blocks until completion.
 func (h *Hook) FlushMessages() {
-	kafkaMsgs := make([]kafka.Message, len(h.msgs))
-	for idx, msg := range h.msgs {
+	//kafkaMsgs := make([]kafka.Message, len(h.msgs))
+	for _, msg := range h.msgs {
 		res, _ := json.Marshal(msg.Value) // Error must always be nil.
-		kafkaMsgs[idx] = kafka.Message{Key: []byte(msg.Key), Value: res}
+	//	kafkaMsgs[idx] = kafka.Message{Key: []byte(msg.Key), Value: res}
+		err := h.writer.WriteMessages(context.Background(), kafka.Message{Key: []byte(msg.Key), Value: res})
+        	if err != nil {
+                	panic(err)
+        	}
 	}
-	err := h.writer.WriteMessages(context.Background(), kafkaMsgs...)
-	if err != nil {
-		panic(err)
-	}
+	//err := h.writer.WriteMessages(context.Background(), kafkaMsgs...)
+	//if err != nil {
+	//	panic(err)
+	//}
 }
 
 // AfterInitChain specifies actions to be done after chain initialization (app.Hook interface).
