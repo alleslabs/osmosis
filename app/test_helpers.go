@@ -115,7 +115,7 @@ func GenesisStateWithValSet(app *OsmosisApp) GenesisState {
 // SetupWithCustomHome initializes a new OsmosisApp with a custom home directory
 func SetupWithCustomHome(isCheckTx bool, dir string) *OsmosisApp {
 	db := cometbftdb.NewMemDB()
-	app := NewOsmosisApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, dir, 0, sims.EmptyAppOptions{}, EmptyWasmOpts, baseapp.SetChainID("osmosis-1"))
+	app := NewOsmosisApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, dir, "", 0, sims.EmptyAppOptions{}, EmptyWasmOpts, baseapp.SetChainID("osmosis-1"))
 	if !isCheckTx {
 		genesisState := GenesisStateWithValSet(app)
 		stateBytes, err := json.MarshalIndent(genesisState, "", " ")
@@ -138,7 +138,7 @@ func SetupWithCustomHome(isCheckTx bool, dir string) *OsmosisApp {
 
 func SetupWithCustomHomeAndChainId(isCheckTx bool, dir, chainId string) *OsmosisApp {
 	db := cometbftdb.NewMemDB()
-	app := NewOsmosisApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, dir, 0, sims.EmptyAppOptions{}, EmptyWasmOpts, baseapp.SetChainID(chainId))
+	app := NewOsmosisApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, dir, "", 0, sims.EmptyAppOptions{}, EmptyWasmOpts, baseapp.SetChainID(chainId))
 	if !isCheckTx {
 		genesisState := GenesisStateWithValSet(app)
 		stateBytes, err := json.MarshalIndent(genesisState, "", " ")
@@ -175,7 +175,7 @@ func SetupTestingAppWithLevelDb(isCheckTx bool) (app *OsmosisApp, cleanupFn func
 	if err != nil {
 		panic(err)
 	}
-	app = NewOsmosisApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, DefaultNodeHome, 5, sims.EmptyAppOptions{}, EmptyWasmOpts, baseapp.SetChainID("osmosis-1"))
+	app = NewOsmosisApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, DefaultNodeHome, "", 5, sims.EmptyAppOptions{}, EmptyWasmOpts, baseapp.SetChainID("osmosis-1"))
 	if !isCheckTx {
 		genesisState := GenesisStateWithValSet(app)
 		stateBytes, err := json.MarshalIndent(genesisState, "", " ")
