@@ -204,7 +204,8 @@ func (ga *GovAdapter) HandleMsgEvents(ctx sdk.Context, txHash []byte, msg sdk.Ms
 				votes[option] = weight
 			}
 
-			voter := msg.GetSigners()[0]
+			rawVoter := evMap[govtypes.EventTypeProposalVote+"."+govtypes.AttributeKeyVoter][idx]
+			voter, _ := sdk.AccAddressFromBech32(rawVoter)
 			newVote := common.JsDict{
 				"proposal_id":      id,
 				"tx_hash":          txHash,
