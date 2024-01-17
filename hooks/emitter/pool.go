@@ -184,12 +184,14 @@ func (pa *PoolAdapter) AfterBeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock
 					"total_shares":              pool.TotalShares,
 				})
 			case *concentratedpool.Pool:
+				poolLiquidity, _ := pa.clpKeeper.GetTotalPoolLiquidity(ctx, poolId)
 				token0 := pool.GetToken0()
 				token1 := pool.GetToken1()
-				poolLiquidity := []sdk.Coin{sdk.NewCoin(token0, sdk.ZeroInt()), sdk.NewCoin(token1, sdk.ZeroInt())}
+				amount0 := poolLiquidity.AmountOf(token0)
+				amount1 := poolLiquidity.AmountOf(token1)
 				common.AppendMessage(kafka, "GENESIS_OSMOSIS_POOL", common.JsDict{
 					"id":        poolId,
-					"liquidity": poolLiquidity,
+					"liquidity": []sdk.Coin{sdk.NewCoin(token0, amount0), sdk.NewCoin(token1, amount1)},
 					"type":      pool.GetType(),
 					// TODO:
 					"creator":   nil,
