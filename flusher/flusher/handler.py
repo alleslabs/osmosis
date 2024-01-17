@@ -457,3 +457,8 @@ class Handler(object):
         self.conn.execute(
             contracts.insert().on_conflict_do_nothing(constraint="contracts_pkey"), msg
         )
+
+    def handle_genesis_cw2_info(self, msg):
+        msg["id"] = msg["code_id"]
+        del msg["code_id"]
+        self.conn.execute(codes.update().where(codes.c.id == msg["id"]).values(**msg))

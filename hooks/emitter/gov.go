@@ -54,6 +54,7 @@ func (ga *GovAdapter) AfterBeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock,
 			if proposal.Id < 709 {
 				continue
 			}
+			ga.govKeeper.Tally(ctx, *proposal)
 			newProposal := common.JsDict{
 				"id":               proposal.Id,
 				"proposer":         proposal.Proposer,
@@ -127,6 +128,7 @@ func (ga *GovAdapter) HandleMsgEvents(ctx sdk.Context, txHash []byte, msg sdk.Ms
 				proposalMsgJsDict["@type"] = sdk.MsgTypeURL(proposalMsg)
 				proposalMsgs = append(proposalMsgs, proposalMsgJsDict)
 			}
+			_, _, tallyResults := ga.govKeeper.Tally(ctx, proposal)
 			newProposal := common.JsDict{
 				"id":               submitProposalId,
 				"proposer":         msg.GetSigners()[0],
@@ -136,10 +138,10 @@ func (ga *GovAdapter) HandleMsgEvents(ctx sdk.Context, txHash []byte, msg sdk.Ms
 				"submit_time":      proposal.SubmitTime.UnixNano(),
 				"deposit_end_time": proposal.DepositEndTime.UnixNano(),
 				"total_deposit":    proposal.TotalDeposit,
-				"yes":              0,
-				"no":               0,
-				"abstain":          0,
-				"no_with_veto":     0,
+				"yes":              tallyResults.GetYesCount(),
+				"no":               tallyResults.GetNoCount(),
+				"abstain":          tallyResults.GetAbstainCount(),
+				"no_with_veto":     tallyResults.GetNoWithVetoCount(),
 				"is_expedited":     false,
 				"resolved_height":  nil,
 			}

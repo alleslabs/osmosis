@@ -172,6 +172,19 @@ func (wa *WasmAdapter) AfterBeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock
 					}
 					break
 				}
+
+				contractInfo := wa.wasmKeeper.GetContractInfo(ctx, contractAddr)
+				rawContractVersion := wa.wasmKeeper.QueryRaw(ctx, contractAddr, []byte("contract_info"))
+				var contractVersion ContractVersion
+				err := json.Unmarshal(rawContractVersion, &contractVersion)
+				if err == nil {
+					common.AppendMessage(kafka, "GENESIS_CW2_INFO", common.JsDict{
+						"code_id":      contractInfo.CodeID,
+						"cw2_contract": contractVersion.Contract,
+						"cw2_version":  contractVersion.Version,
+					})
+				}
+
 				return false
 			})
 
