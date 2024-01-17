@@ -117,12 +117,16 @@ class Handler(object):
         ).scalar()
 
     def handle_new_block(self, msg):
-        self.conn.execute(insert(blocks).values(msg).on_conflict_do_update(constraint='blocks_pkey', set_=msg))
+        self.conn.execute(
+            insert(blocks)
+            .values(msg)
+            .on_conflict_do_update(constraint="blocks_pkey", set_=msg)
+        )
 
     def handle_new_transaction(self, msg):
         msg["memo"] = msg["memo"].replace("\x00", "\uFFFD")
         if msg["err_msg"] is not None:
-            msg["err_msg"] = msg["err_msg"].replace("\x00","\uFFFD")
+            msg["err_msg"] = msg["err_msg"].replace("\x00", "\uFFFD")
         msg["sender"] = self.get_account_id(msg["sender"])
         self.conn.execute(
             insert(transactions)
@@ -148,21 +152,18 @@ class Handler(object):
             )
 
     def handle_new_code(self, msg):
-        if "tx_hash" in msg and msg["tx_hash"] is not None:
-            msg["transaction_id"] = self.get_transaction_id(msg["tx_hash"])
-            del msg["tx_hash"]
-        else:
-            msg["transaction_id"] = None
-
-        msg["uploader"] = self.get_account_id(msg["uploader"])
-        self.conn.execute(codes.insert(), msg)
+        pass
 
     def handle_set_account(self, msg):
         id = self.conn.execute(
             select([accounts.c.id]).where(accounts.c.address == msg["address"])
         ).scalar()
         if id is None:
-            self.conn.execute(insert(accounts).values(msg).on_conflict_do_update(constraint='accounts_pkey', set_=msg))
+            self.conn.execute(
+                insert(accounts)
+                .values(msg)
+                .on_conflict_do_update(constraint="accounts_pkey", set_=msg)
+            )
         else:
             msg["id"] = id
             self.conn.execute(accounts.update(accounts.c.id == msg["id"]).values(**msg))
@@ -175,11 +176,7 @@ class Handler(object):
         )
 
     def handle_update_code_instantiate_config(self, msg):
-        self.conn.execute(
-            codes.update()
-            .where(codes.c.id == msg["id"])
-            .values(**msg)
-        )
+        pass
 
     def handle_update_contract(self, id):
         self.conn.execute(
@@ -189,18 +186,7 @@ class Handler(object):
         )
 
     def handle_new_contract(self, msg):
-        if "tx_hash" in msg and msg["tx_hash"] is not None:
-            msg["init_tx_id"] = self.get_transaction_id(msg["tx_hash"])
-            del msg["tx_hash"]
-        else:
-            msg["init_tx_id"] = None
-
-        msg["init_by"] = self.get_account_id(msg["init_by"])
-        if msg["admin"] != "":
-            msg["admin"] = self.get_account_id(msg["admin"])
-        else:
-            del msg["admin"]
-        self.conn.execute(contracts.insert(), msg)
+        pass
 
     def handle_new_contract_transaction(self, msg):
         if msg["tx_hash"] is not None:
@@ -224,40 +210,16 @@ class Handler(object):
         self.conn.execute(contract_transactions_view.insert(), transaction_view)
 
     def handle_update_contract_admin(self, msg):
-        msg["address"] = msg["contract"]
-        del msg["contract"]
-        if msg["admin"] != "":
-            msg["admin"] = self.get_account_id(msg["admin"])
-        else:
-            msg["admin"] = None
-        self.conn.execute(
-            contracts.update()
-            .where(contracts.c.address == msg["address"])
-            .values(**msg)
-        )
+        pass
 
     def handle_update_contract_code_id(self, msg):
-        msg["address"] = msg["contract"]
-        del msg["contract"]
-        self.conn.execute(
-            contracts.update()
-            .where(contracts.c.address == msg["address"])
-            .values(**msg)
-        )
+        pass
 
     def handle_update_contract_label(self, msg):
-        msg["address"] = msg["contract"]
-        del msg["contract"]
-        self.conn.execute(
-            contracts.update()
-            .where(contracts.c.address == msg["address"])
-            .values(**msg)
-        )
+        pass
 
     def handle_new_proposal(self, msg):
-        msg["proposer_id"] = self.get_account_id(msg["proposer"])
-        del msg["proposer"]
-        self.conn.execute(proposals.insert(), msg)
+        pass
 
     def handle_update_proposal(self, msg):
         condition = True
@@ -278,7 +240,7 @@ class Handler(object):
         self.conn.execute(proposal_votes.insert(), msg)
 
     def handle_new_code_proposal(self, msg):
-        self.conn.execute(code_proposals.insert(), msg)
+        pass
 
     def handle_new_contract_proposal(self, msg):
         msg["contract_id"] = self.get_contract_id(msg["contract_address"])
@@ -304,21 +266,7 @@ class Handler(object):
         self.conn.execute(contract_histories.insert(), msg)
 
     def handle_update_cw2_info(self, msg):
-        msg["id"] = msg["code_id"]
-        del msg["code_id"]
-        self.conn.execute(codes.update().where(codes.c.id == msg["id"]).values(**msg))
-
-    def handle_trade(self, msg):
-        self.conn.execute(trade.insert(), msg)
-
-    def handle_profit_by_denom(self, msg):
-        self.conn.execute(profit_by_denom.insert(), msg)
-
-    def handle_trade_by_route(self, msg):
-        self.conn.execute(trade_by_route.insert(), msg)
-
-    def handle_profit_by_route(self, msg):
-        self.conn.execute(profit_by_route.insert(), msg)
+        pass
 
     def handle_insert_lcd_tx_results(self, msg):
         if "tx_hash" in msg and msg["tx_hash"] is not None:
@@ -329,26 +277,16 @@ class Handler(object):
         self.conn.execute(lcd_tx_results.insert(), msg)
 
     def handle_new_osmosis_pool(self, msg):
-        msg["creator"] = self.get_account_id(msg["creator"])
-        if "create_tx" in msg and msg["create_tx"] is not None:
-            msg["create_tx_id"] = self.get_transaction_id(msg["create_tx"])
-            del msg["create_tx"]
-        else:
-            msg["create_tx_id"] = None
-        self.conn.execute(pools.insert(), msg)
+        pass
 
     def handle_update_set_superfluid_asset(self, msg):
-        self.conn.execute(pools.update().where(pools.c.id == msg["id"]).values({"is_superfluid": True}))
+        pass
 
     def handle_update_remove_superfluid_asset(self, msg):
-        self.conn.execute(pools.update().where(pools.c.id == msg["id"]).values({"is_superfluid": False}))
+        pass
 
     def handle_update_pool(self, msg):
-        self.conn.execute(
-            pools.update()
-            .where(pools.c.id == msg["id"])
-            .values(**msg)
-        )
+        pass
 
     def handle_new_pool_transaction(self, msg):
         msg["transaction_id"] = self.get_transaction_id(msg["tx_hash"])
@@ -363,29 +301,24 @@ class Handler(object):
     def handle_set_taker_fee(self, msg):
         fee = self.conn.execute(
             select([taker_fee.c.taker_fee]).where(
-                (taker_fee.c.denom0 == msg["denom0"]) & (taker_fee.c.denom1 == msg["denom1"]))
+                (taker_fee.c.denom0 == msg["denom0"])
+                & (taker_fee.c.denom1 == msg["denom1"])
+            )
         ).scalar()
         if fee is None:
             self.conn.execute(taker_fee.insert(), msg)
         else:
-            self.conn.execute(taker_fee.update()
-                              .where((taker_fee.c.denom0 == msg["denom0"]) & (taker_fee.c.denom1 == msg["denom1"]))
-                              .values(taker_fee=msg["taker_fee"]))
+            self.conn.execute(
+                taker_fee.update()
+                .where(
+                    (taker_fee.c.denom0 == msg["denom0"])
+                    & (taker_fee.c.denom1 == msg["denom1"])
+                )
+                .values(taker_fee=msg["taker_fee"])
+            )
 
     def handle_set_validator(self, msg):
-        msg["account_id"] = self.get_account_id(msg["delegator_address"])
-        del msg["delegator_address"]
-        if self.get_validator_id(msg["operator_address"]) is None:
-            self.conn.execute(validators.insert(), msg)
-        else:
-            condition = True
-            for col in validators.primary_key.columns.values():
-                condition = (col == msg[col.name]) & condition
-            self.conn.execute(validators.update().where(condition).values(**msg))
+        pass
 
     def handle_update_validator(self, msg):
-        self.conn.execute(
-            validators.update()
-            .where(validators.c.operator_address == msg["operator_address"])
-            .values(**msg)
-        )
+        pass
