@@ -49,11 +49,11 @@ def sync(commit_interval, db, servers, echo_sqlalchemy):
     while True:
         consumer.seek_to_end(tp)
         last_offset = consumer.position(tp)
-        if tracking_info.kafka_offset < last_offset:
+        if tracking_info.legacy_kafka_offset < last_offset:
             break
         logger.info("Waiting emitter sync current emitter offset is {}", last_offset)
         time.sleep(5)
-    consumer.seek(tp, tracking_info.kafka_offset + 1)
+    consumer.seek(tp, tracking_info.legacy_kafka_offset + 1)
     consumer_iter = iter(consumer)
     # Main loop
     while True:
@@ -64,7 +64,7 @@ def sync(commit_interval, db, servers, echo_sqlalchemy):
                 value = json.loads(msg.value)
                 if key == "COMMIT":
                     if value["height"] % commit_interval == 0:
-                        conn.execute(tracking.update().values(kafka_offset=msg.offset, latest_informative_block_height=value["height"]))
+                        conn.execute(tracking.update().values(legacy_kafka_offset=msg.offset, legacy_latest_informative_block_height=value["height"]))
                         logger.info(
                             "Committed at block {} and Kafka offset {}",
                             value["height"],
