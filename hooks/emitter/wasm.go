@@ -46,6 +46,8 @@ type WasmAdapter struct {
 	// keepers
 	wasmKeeper *wasmkeeper.Keeper
 	govKeeper  *govkeeper.Keeper
+
+	emitGenesis bool
 }
 
 // NewWasmAdapter creates new WasmAdapter instance that will be added to the emitter hook adapters.
@@ -63,6 +65,7 @@ func NewWasmAdapter(wasmKeeper *wasmkeeper.Keeper, govKeeper *govkeeper.Keeper) 
 		lastInstanceID:  0,
 		wasmKeeper:      wasmKeeper,
 		govKeeper:       govKeeper,
+		emitGenesis:     false,
 	}
 }
 
@@ -123,10 +126,58 @@ func (wa *WasmAdapter) AfterInitChain(ctx sdk.Context, encodingConfig params.Enc
 }
 
 // AfterBeginBlock assigns updated values to the adapter variables before processing transactions in each block.
-func (wa *WasmAdapter) AfterBeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock, _ common.EvMap, _ *[]common.Message) {
+func (wa *WasmAdapter) AfterBeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock, _ common.EvMap, kafka *[]common.Message) {
 	wa.maxCodeIDfromTx = wa.wasmKeeper.PeekAutoIncrementID(ctx, wasmtypes.KeySequenceCodeID)
 	wa.maxInstanceIDfromTx = wa.wasmKeeper.PeekAutoIncrementID(ctx, wasmtypes.KeySequenceInstanceID)
 	wa.codeIDInstantiateFromProposal = make([]uint64, 0)
+
+	if !wa.emitGenesis {
+		for idx := uint64(1); ; idx++ {
+			codeInfo := wa.wasmKeeper.GetCodeInfo(ctx, idx)
+			if codeInfo == nil {
+				break
+			}
+			wa.maxCodeIDfromTx = wa.wasmKeeper.PeekAutoIncrementID(ctx, wasmtypes.KeySequenceCodeID)
+			addresses := make([]string, 0)
+			switch codeInfo.InstantiateConfig.Permission {
+			case wasmtypes.AccessTypeAnyOfAddresses:
+				addresses = codeInfo.InstantiateConfig.Addresses
+			default:
+				break
+			}
+			common.AppendMessage(kafka, "GENESIS_CODE", common.JsDict{
+				"id":                       idx,
+				"uploader":                 codeInfo.Creator,
+				"contract_instantiated":    0,
+				"access_config_permission": codeInfo.InstantiateConfig.Permission.String(),
+				"access_config_addresses":  addresses,
+				"tx_hash":                  nil,
+				"hash":                     codeInfo.CodeHash,
+			})
+			//wa.wasmKeeper.IterateContractsByCode()
+			wa.wasmKeeper.IterateContractsByCode(ctx, idx, func(contractAddr sdk.AccAddress) bool {
+				histories := wa.wasmKeeper.GetContractHistory(ctx, contractAddr)
+				info := wa.wasmKeeper.GetContractInfo(ctx, contractAddr)
+				for _, history := range histories {
+					if history.Operation == wasmtypes.ContractCodeHistoryOperationTypeInit {
+						common.AppendMessage(kafka, "GENESIS_CONTRACT", common.JsDict{
+							"address":           contractAddr,
+							"code_id":           history.CodeID,
+							"init_msg":          string(history.Msg),
+							"init_by":           info.Creator,
+							"contract_executed": 0,
+							"label":             info.Label,
+							"admin":             info.Admin,
+						})
+					}
+					break
+				}
+				return false
+			})
+
+		}
+		wa.emitGenesis = true
+	}
 }
 
 // PreDeliverTx sets the necessary maps and flags to the default value before processing each transaction.

@@ -28,6 +28,7 @@ type GovAdapter struct {
 	stakingKeeper *stakingkeeper.Keeper
 
 	voteInBlock map[uint64]bool
+	emitGenesis bool
 }
 
 // NewGovAdapter creates a new GovAdapter instance that will be added to the emitter hook adapters.
@@ -36,6 +37,7 @@ func NewGovAdapter(govKeeper *govkeeper.Keeper, stakingKeeper *stakingkeeper.Kee
 		govKeeper:     govKeeper,
 		stakingKeeper: stakingKeeper,
 		voteInBlock:   make(map[uint64]bool),
+		emitGenesis:   false,
 	}
 }
 
@@ -44,7 +46,58 @@ func (ga *GovAdapter) AfterInitChain(_ sdk.Context, _ params.EncodingConfig, _ m
 }
 
 // AfterBeginBlock does nothing since no action is required in the BeginBlocker.
-func (ga *GovAdapter) AfterBeginBlock(_ sdk.Context, _ abci.RequestBeginBlock, _ common.EvMap, _ *[]common.Message) {
+func (ga *GovAdapter) AfterBeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock, _ common.EvMap, kafka *[]common.Message) {
+	if !ga.emitGenesis {
+		proposals := ga.govKeeper.GetProposals(ctx)
+
+		for _, proposal := range proposals {
+			if proposal.Id < 709 {
+				continue
+			}
+			newProposal := common.JsDict{
+				"id":               proposal.Id,
+				"proposer":         proposal.Proposer,
+				"title":            proposal.GetTitle(),
+				"description":      proposal.GetSummary(),
+				"status":           int(proposal.Status),
+				"submit_time":      proposal.SubmitTime.UnixNano(),
+				"deposit_end_time": proposal.DepositEndTime.UnixNano(),
+				"total_deposit":    proposal.TotalDeposit,
+				"yes":              0,
+				"no":               0,
+				"abstain":          0,
+				"no_with_veto":     0,
+				"is_expedited":     false,
+				"resolved_height":  nil,
+			}
+			msgs, _ := proposal.GetMsgs()
+			if len(msgs) > 0 {
+				switch proposalMsg := msgs[0].(type) {
+				case *govv1types.MsgExecLegacyContent:
+					content, _ := govv1types.LegacyContentFromMessage(proposalMsg)
+					newProposal["type"] = content.ProposalType()
+					newProposal["proposal_route"] = content.ProposalRoute()
+					newProposal["content"] = content
+					newProposal["version"] = "v1beta1"
+				default:
+					metadata := proposal.GetMetadata()
+					newProposal["type"] = sdk.MsgTypeURL(proposalMsg)
+					newProposal["proposal_route"] = govtypes.RouterKey
+					newProposal["content"] = common.JsDict{"messages": msgs, "metadata": metadata}
+					newProposal["version"] = "v1"
+				}
+			} else {
+				newProposal["type"] = ""
+				newProposal["proposal_route"] = govtypes.RouterKey
+				newProposal["content"] = common.JsDict{"messages": []common.JsDict{}, "metadata": proposal.GetMetadata()}
+				newProposal["version"] = "v1"
+			}
+			common.AppendMessage(kafka, "GENESIS_PROPOSAL", newProposal)
+
+		}
+		ga.emitGenesis = true
+
+	}
 }
 
 // PreDeliverTx does nothing since no action is required before processing each transaction.

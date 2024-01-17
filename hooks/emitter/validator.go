@@ -19,13 +19,15 @@ var _ Adapter = &ValidatorAdapter{}
 // ValidatorAdapter defines a struct containing the required keeper to process the validator related hook.
 // It implements Adapter interface.
 type ValidatorAdapter struct {
-	keeper keeper.Keeper
+	keeper      keeper.Keeper
+	emitGenesis bool
 }
 
 // NewValidatorAdapter creates a new ValidatorAdapter instance that will be added to the emitter hook adapters.
 func NewValidatorAdapter(keeper *keeper.Keeper) *ValidatorAdapter {
 	return &ValidatorAdapter{
-		keeper: *keeper,
+		keeper:      *keeper,
+		emitGenesis: false,
 	}
 }
 
@@ -44,6 +46,28 @@ func (va *ValidatorAdapter) AfterInitChain(ctx sdk.Context, encodingConfig param
 				va.emitSetValidator(ctx, valAddr, kafka)
 			}
 		}
+	}
+	if !va.emitGenesis {
+		vals := va.keeper.GetValidators(ctx, 1000)
+		for _, val := range vals {
+			val, _ := va.keeper.GetValidator(ctx, val.GetOperator())
+			pub, _ := val.ConsPubKey()
+			common.AppendMessage(kafka, "GENESIS_VALIDATOR", common.JsDict{
+				"operator_address":      val.GetOperator().String(),
+				"delegator_address":     sdk.AccAddress(val.GetOperator()).String(),
+				"consensus_address":     sdk.GetConsAddress(pub).String(),
+				"moniker":               val.Description.Moniker,
+				"identity":              val.Description.Identity,
+				"website":               val.Description.Website,
+				"details":               val.Description.Details,
+				"commission_rate":       val.Commission.Rate.String(),
+				"commission_max_rate":   val.Commission.MaxRate.String(),
+				"commission_max_change": val.Commission.MaxChangeRate.String(),
+				"min_self_delegation":   val.MinSelfDelegation.String(),
+				"jailed":                val.Jailed,
+			})
+		}
+		va.emitGenesis = true
 	}
 }
 

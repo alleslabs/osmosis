@@ -64,6 +64,8 @@ type PoolAdapter struct {
 	lockupKeeper       *lockupkeeper.Keeper
 	poolmanagerKeeper  *poolmanagerkeeper.Keeper
 	wasmKeeper         *wasmkeeper.Keeper
+
+	emitGenesis bool
 }
 
 // NewPoolAdapter creates a new PoolAdapter instance that will be added to the emitter hook adapters.
@@ -98,6 +100,7 @@ func NewPoolAdapter(
 		lockupKeeper:          lockupKeeper,
 		poolmanagerKeeper:     poolmanagerKeeper,
 		wasmKeeper:            wasmKeeper,
+		emitGenesis:           false,
 	}
 }
 
@@ -111,7 +114,7 @@ func (pa *PoolAdapter) AfterInitChain(
 }
 
 // AfterBeginBlock sets the necessary map to the starting value before processing each block.
-func (pa *PoolAdapter) AfterBeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock, _ common.EvMap, _ *[]common.Message) {
+func (pa *PoolAdapter) AfterBeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock, _ common.EvMap, kafka *[]common.Message) {
 	if !pa.isCosmwasmLoaded {
 		pools, err := pa.cosmwasmpoolKeeper.GetPools(ctx)
 		if err != nil {
@@ -124,6 +127,107 @@ func (pa *PoolAdapter) AfterBeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock
 		pa.isCosmwasmLoaded = true
 	}
 	pa.poolInBlock = make(map[uint64]bool)
+
+	if !pa.emitGenesis {
+		for poolId := uint64(1363); ; poolId++ {
+			poolInfo, err := pa.poolmanagerKeeper.GetPool(ctx, poolId)
+			if err != nil {
+				break
+			}
+			switch pool := poolInfo.(type) {
+			case *balancer.Pool:
+				weights := make([]common.JsDict, 0)
+				for _, weight := range pool.PoolAssets {
+					weights = append(weights, common.JsDict{
+						"denom":  weight.Token.GetDenom(),
+						"weight": weight.Weight.String(),
+					})
+				}
+				poolMsg := common.JsDict{
+					"id":        poolId,
+					"liquidity": pool.GetTotalPoolLiquidity(ctx),
+					"type":      pool.GetType(),
+					// TODO:
+					"creator":   nil,
+					"create_tx": nil,
+					//
+					"is_superfluid":        false,
+					"is_supported":         false,
+					"swap_fee":             pool.GetSpreadFactor(ctx).String(),
+					"exit_fee":             pool.GetExitFee(ctx).String(),
+					"future_pool_governor": pool.FuturePoolGovernor,
+					"weight":               weights,
+					"address":              pool.GetAddress().String(),
+					"total_shares":         pool.TotalShares,
+				}
+				if smoothWeightChangeParams := pool.PoolParams.GetSmoothWeightChangeParams(); smoothWeightChangeParams != nil {
+					poolMsg["smooth_weight_change_params"] = smoothWeightChangeParams
+				}
+				common.AppendMessage(kafka, "GENESIS_OSMOSIS_POOL", poolMsg)
+			case *stableswap.Pool:
+				common.AppendMessage(kafka, "GENESIS_OSMOSIS_POOL", common.JsDict{
+					"id":        poolId,
+					"liquidity": pool.GetTotalPoolLiquidity(ctx),
+					"type":      pool.GetType(),
+					// TODO:
+					"creator":   nil,
+					"create_tx": nil,
+					//
+					"is_superfluid":             false,
+					"is_supported":              false,
+					"swap_fee":                  pool.GetSpreadFactor(ctx).String(),
+					"exit_fee":                  pool.GetExitFee(ctx).String(),
+					"future_pool_governor":      pool.FuturePoolGovernor,
+					"scaling_factors":           pool.GetScalingFactors(),
+					"scaling_factor_controller": pool.ScalingFactorController,
+					"address":                   pool.GetAddress().String(),
+					"total_shares":              pool.TotalShares,
+				})
+			case *concentratedpool.Pool:
+				token0 := pool.GetToken0()
+				token1 := pool.GetToken1()
+				poolLiquidity := []sdk.Coin{sdk.NewCoin(token0, sdk.ZeroInt()), sdk.NewCoin(token1, sdk.ZeroInt())}
+				common.AppendMessage(kafka, "GENESIS_OSMOSIS_POOL", common.JsDict{
+					"id":        poolId,
+					"liquidity": poolLiquidity,
+					"type":      pool.GetType(),
+					// TODO:
+					"creator":   nil,
+					"create_tx": nil,
+					//
+					"is_superfluid":        false,
+					"is_supported":         false,
+					"swap_fee":             pool.GetSpreadFactor(ctx),
+					"exit_fee":             "0",
+					"future_pool_governor": "",
+					"address":              pool.GetAddress().String(),
+					"total_shares":         sdk.Coin{},
+					"spread_factor":        pool.GetSpreadFactor(ctx),
+					"tick_spacing":         pool.GetTickSpacing(),
+				})
+			case *cosmwasmpool.Pool:
+				pa.cosmwasmContractAddrs[pool.GetContractAddress()] = poolId
+				common.AppendMessage(kafka, "GENESIS_OSMOSIS_POOL", common.JsDict{
+					"id":        poolId,
+					"liquidity": pool.GetTotalPoolLiquidity(ctx),
+					"type":      pool.GetType(),
+					// TODO:
+					"creator":   nil,
+					"create_tx": nil,
+					//
+					"is_superfluid":        false,
+					"is_supported":         false,
+					"swap_fee":             pool.GetSpreadFactor(ctx),
+					"exit_fee":             "0",
+					"future_pool_governor": "",
+					"address":              pool.GetAddress(),
+					"total_shares":         sdk.Coin{},
+					"contract_address":     pool.GetContractAddress(),
+				})
+			}
+		}
+		pa.emitGenesis = true
+	}
 }
 
 // PreDeliverTx sets the necessary maps and flags to the starting value before processing each transaction.
