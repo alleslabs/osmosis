@@ -447,6 +447,7 @@ class Handler(object):
             del msg["tx_hash"]
         else:
             msg["init_tx_id"] = None
+            del msg["tx_hash"]
 
         msg["init_by"] = self.get_account_id(msg["init_by"])
         if msg["admin"] != "":
