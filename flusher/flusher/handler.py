@@ -237,7 +237,7 @@ class Handler(object):
         self.conn.execute(proposal_votes.insert(), msg)
 
     def handle_new_code_proposal(self, msg):
-        pass
+        self.conn.execute(code_proposals.insert(), msg)
 
     def handle_new_contract_proposal(self, msg):
         msg["contract_id"] = self.get_contract_id(msg["contract_address"])
