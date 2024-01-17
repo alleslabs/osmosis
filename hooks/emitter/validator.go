@@ -47,10 +47,13 @@ func (va *ValidatorAdapter) AfterInitChain(ctx sdk.Context, encodingConfig param
 			}
 		}
 	}
+}
+
+// AfterBeginBlock emits a new block message and handles validator jailing events.
+func (va *ValidatorAdapter) AfterBeginBlock(ctx sdk.Context, req abci.RequestBeginBlock, evMap common.EvMap, kafka *[]common.Message) {
 	if !va.emitGenesis {
 		vals := va.keeper.GetValidators(ctx, 1000)
 		for _, val := range vals {
-			val, _ := va.keeper.GetValidator(ctx, val.GetOperator())
 			pub, _ := val.ConsPubKey()
 			common.AppendMessage(kafka, "GENESIS_VALIDATOR", common.JsDict{
 				"operator_address":      val.GetOperator().String(),
@@ -69,10 +72,7 @@ func (va *ValidatorAdapter) AfterInitChain(ctx sdk.Context, encodingConfig param
 		}
 		va.emitGenesis = true
 	}
-}
 
-// AfterBeginBlock emits a new block message and handles validator jailing events.
-func (va *ValidatorAdapter) AfterBeginBlock(ctx sdk.Context, req abci.RequestBeginBlock, evMap common.EvMap, kafka *[]common.Message) {
 	validator, _ := va.keeper.GetValidatorByConsAddr(ctx, req.Header.GetProposerAddress())
 	common.AppendMessage(kafka, "NEW_BLOCK", common.JsDict{
 		"height":    req.Header.GetHeight(),
