@@ -435,6 +435,7 @@ class Handler(object):
             del msg["tx_hash"]
         else:
             msg["transaction_id"] = None
+            del msg["tx_hash"]
 
         msg["uploader"] = self.get_account_id(msg["uploader"])
         self.conn.execute(
