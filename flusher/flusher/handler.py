@@ -419,6 +419,7 @@ class Handler(object):
             del msg["create_tx"]
         else:
             msg["create_tx_id"] = None
+            del msg["create_tx"]
         self.conn.execute(
             insert(pools).values(**msg).on_conflict_do_nothing(constraint="pools_pkey")
         )
