@@ -152,7 +152,14 @@ class Handler(object):
             )
 
     def handle_new_code(self, msg):
-        pass
+        if msg.get("tx_hash") is None:
+            return
+        transaction_id = self.get_transaction_id(msg["tx_hash"])
+        self.conn.execute(
+            codes.update(codes.c.id == msg["id"]).values(
+                transaction_id=transaction_id
+            )
+        )
 
     def handle_set_account(self, msg):
         id = self.conn.execute(
@@ -186,7 +193,14 @@ class Handler(object):
         )
 
     def handle_new_contract(self, msg):
-        pass
+        if msg.get("tx_hash") is None:
+            return
+        init_tx_id = self.get_transaction_id(msg["tx_hash"])
+        self.conn.execute(
+            contracts.update(contracts.c.address == msg["address"]).values(
+                init_tx_id=init_tx_id
+            )
+        )
 
     def handle_new_contract_transaction(self, msg):
         if msg["tx_hash"] is not None:
@@ -222,7 +236,10 @@ class Handler(object):
         pass
 
     def handle_update_proposal(self, msg):
-        pass
+        if msg.get("resolved_height") is None:
+            return
+        self.conn.execute(proposals.update().where(proposals.c.id == msg["id"])
+                          .values(resolved_height=msg["resolved_height"]))
 
     def handle_new_proposal_deposit(self, msg):
         msg["transaction_id"] = self.get_transaction_id(msg["tx_hash"])
@@ -274,7 +291,14 @@ class Handler(object):
         self.conn.execute(lcd_tx_results.insert(), msg)
 
     def handle_new_osmosis_pool(self, msg):
-        pass
+        if msg.get("create_tx") is None:
+            return
+        creator = self.get_account_id(msg["creator"])
+        create_tx_id = self.get_transaction_id(msg["create_tx"])
+        self.conn.execute(pools.update().where(pools.c.id == msg["id"]).values(
+            creator=creator,
+            create_tx_id=create_tx_id
+        ))
 
     def handle_update_set_superfluid_asset(self, msg):
         pass
