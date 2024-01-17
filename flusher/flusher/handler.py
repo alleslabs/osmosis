@@ -409,8 +409,7 @@ class Handler(object):
         msg["proposer_id"] = self.get_account_id(msg["proposer"])
         del msg["proposer"]
         self.conn.execute(
-            proposals.insert().on_conflict_do_nothing(constraint="proposals_pkey"),
-            msg,
+            insert(proposals).values(**msg).on_conflict_do_nothing(constraint="proposals_pkey")
         )
 
     def handle_genesis_osmosis_pool(self, msg):
@@ -421,7 +420,7 @@ class Handler(object):
         else:
             msg["create_tx_id"] = None
         self.conn.execute(
-            pools.insert().on_conflict_do_nothing(constraint="pools_pkey"), msg
+            insert(pools).values(**msg).on_conflict_do_nothing(constraint="pools_pkey")
         )
 
     def handle_genesis_validator(self, msg):
@@ -439,7 +438,7 @@ class Handler(object):
 
         msg["uploader"] = self.get_account_id(msg["uploader"])
         self.conn.execute(
-            codes.insert().on_conflict_do_nothing(constraint="codes_pkey"), msg
+            insert(codes).values(**msg).on_conflict_do_nothing(constraint="codes_pkey")
         )
 
     def handle_genesis_contract(self, msg):
@@ -455,7 +454,7 @@ class Handler(object):
         else:
             del msg["admin"]
         self.conn.execute(
-            contracts.insert().on_conflict_do_nothing(constraint="contracts_pkey"), msg
+            insert(contracts).values(**msg).on_conflict_do_nothing(constraint="contracts_pkey")
         )
 
     def handle_genesis_cw2_info(self, msg):
