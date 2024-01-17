@@ -222,10 +222,7 @@ class Handler(object):
         pass
 
     def handle_update_proposal(self, msg):
-        condition = True
-        for col in proposals.primary_key.columns.values():
-            condition = (col == msg[col.name]) & condition
-        self.conn.execute(proposals.update().where(condition).values(**msg))
+        pass
 
     def handle_new_proposal_deposit(self, msg):
         msg["transaction_id"] = self.get_transaction_id(msg["tx_hash"])
