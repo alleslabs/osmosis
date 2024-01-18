@@ -279,7 +279,7 @@ func (ga *GovAdapter) AfterEndBlock(ctx sdk.Context, _ abci.RequestEndBlock, evM
 		}
 	}
 
-	ga.flushUpdateProposalVotes(ctx, kafka)
+	// ga.flushUpdateProposalVotes(ctx, kafka)
 }
 
 // flushUpdateProposalVotes appends updated governance proposals votes into the provided Kafka messages array.
