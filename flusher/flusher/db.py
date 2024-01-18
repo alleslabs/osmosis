@@ -108,6 +108,7 @@ tracking = sa.Table(
     Column("kafka_offset", sa.Integer),
     Column("replay_topic", sa.String),
     Column("replay_offset", sa.Integer),
+    Column("latest_informative_block_height", sa.Integer, default=0),
 )
 
 
