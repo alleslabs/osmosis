@@ -148,11 +148,9 @@ func (va *ValidatorAdapter) AfterEndBlock(ctx sdk.Context, _ abci.RequestEndBloc
 // emitSetValidator appends the latest validator information into the provided Kafka messages array.
 func (va *ValidatorAdapter) emitSetValidator(ctx sdk.Context, addr sdk.ValAddress, kafka *[]common.Message) stakingtypes.Validator {
 	val, _ := va.keeper.GetValidator(ctx, addr)
-	pub, _ := val.ConsPubKey()
-	common.AppendMessage(kafka, "SET_VALIDATOR", common.JsDict{
+	m := common.JsDict{
 		"operator_address":      addr.String(),
 		"delegator_address":     sdk.AccAddress(addr).String(),
-		"consensus_address":     sdk.GetConsAddress(pub).String(),
 		"moniker":               val.Description.Moniker,
 		"identity":              val.Description.Identity,
 		"website":               val.Description.Website,
@@ -162,7 +160,13 @@ func (va *ValidatorAdapter) emitSetValidator(ctx sdk.Context, addr sdk.ValAddres
 		"commission_max_change": val.Commission.MaxChangeRate.String(),
 		"min_self_delegation":   val.MinSelfDelegation.String(),
 		"jailed":                val.Jailed,
-	})
+	}
+
+	pub, err := val.ConsPubKey()
+	if err == nil {
+		m["consensus_address"] = sdk.GetConsAddress(pub).String()
+	}
+	common.AppendMessage(kafka, "SET_VALIDATOR", m)
 	return val
 }
 
