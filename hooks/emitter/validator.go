@@ -161,10 +161,9 @@ func (va *ValidatorAdapter) emitSetValidator(ctx sdk.Context, addr sdk.ValAddres
 		"min_self_delegation":   val.MinSelfDelegation.String(),
 		"jailed":                val.Jailed,
 	}
-
-	pub, err := val.ConsPubKey()
+	pub, err := val.GetConsAddr()
 	if err == nil {
-		m["consensus_address"] = sdk.GetConsAddress(pub).String()
+		m["consensus_address"] = pub.String()
 	}
 	common.AppendMessage(kafka, "SET_VALIDATOR", m)
 	return val
