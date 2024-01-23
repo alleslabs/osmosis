@@ -145,7 +145,10 @@ func (va *ValidatorAdapter) AfterEndBlock(ctx sdk.Context, _ abci.RequestEndBloc
 
 // emitSetValidator appends the latest validator information into the provided Kafka messages array.
 func (va *ValidatorAdapter) emitSetValidator(ctx sdk.Context, is_create_validator bool, addr sdk.ValAddress, kafka *[]common.Message) stakingtypes.Validator {
-	val, _ := va.keeper.GetValidator(ctx, addr)
+	val, err := va.keeper.GetValidator(ctx, addr)
+	if err {
+		panic(err)
+	}
 	m := common.JsDict{
 		"operator_address":      addr.String(),
 		"delegator_address":     sdk.AccAddress(addr).String(),
