@@ -210,7 +210,7 @@ class Handler(object):
         del msg["tx_hash"]
 
         transaction_view["contract_address"] = msg["contract_address"]
-        msg["contract_id"] = self.get_contract_id(msg["contract_address"])
+        msg["contract_id"] = self.get_contract_id(msg["contract_address"].lower())
         del msg["contract_address"]
         if not msg["contract_id"] and not self.get_transaction_success_by_id(
             msg["tx_id"]
@@ -257,6 +257,7 @@ class Handler(object):
     def handle_new_proposal(self, msg):
         msg["proposer_id"] = self.get_account_id(msg["proposer"])
         del msg["proposer"]
+        msg["created_tx"] = self.get_transaction_id(msg["created_tx"])
         self.conn.execute(proposals.insert(), msg)
 
     def handle_update_proposal(self, msg):

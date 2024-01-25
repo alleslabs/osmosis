@@ -238,6 +238,12 @@ proposals = sa.Table(
         index=True,
         nullable=True,
     ),
+    Column("types", sa.JSON),
+    Column("proposal_routes", sa.JSON),
+    Column("messages", sa.JSON),
+    Column("created_tx", sa.Integer, sa.ForeignKey("transactions.id"), nullable=True),
+    Column("created_height", sa.Integer, sa.ForeignKey("blocks.height"), nullable=True),
+    Column("metadata", sa.String),
 )
 
 proposal_deposits = sa.Table(
