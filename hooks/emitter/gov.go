@@ -64,9 +64,9 @@ func (ga *GovAdapter) HandleMsgEvents(ctx sdk.Context, txHash []byte, msg sdk.Ms
 			submitProposalId = common.Atoui(rawId)
 			proposal, _ := ga.govKeeper.GetProposal(ctx, submitProposalId)
 
-			var proposalMsgs []common.JsDict
-			var types []string
-			var routes []string
+			proposalMsgs := make([]common.JsDict, 0)
+			types := make([]string, 0)
+			routes := make([]string, 0)
 
 			rawProposalMsgs, _ := proposal.GetMsgs()
 			for _, proposalMsg := range rawProposalMsgs {
