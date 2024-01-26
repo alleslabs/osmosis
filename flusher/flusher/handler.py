@@ -121,6 +121,8 @@ class Handler(object):
 
     def handle_new_transaction(self, msg):
         msg["memo"] = msg["memo"].replace("\x00", "\uFFFD")
+        if msg["err_msg"] is not None:
+            msg["err_msg"] = msg["err_msg"].replace("\x00", "\uFFFD")
         msg["sender"] = self.get_account_id(msg["sender"])
         self.conn.execute(
             insert(transactions)
