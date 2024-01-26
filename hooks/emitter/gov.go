@@ -62,7 +62,10 @@ func (ga *GovAdapter) HandleMsgEvents(ctx sdk.Context, txHash []byte, msg sdk.Ms
 		for _, rawId := range rawIds {
 			submitProposalId = common.Atoui(rawId)
 			proposal, _ := ga.govKeeper.GetProposal(ctx, submitProposalId)
-			var proposalMsgs []common.JsDict
+
+			proposalMsgs := make([]common.JsDict, 0)
+			types := make([]string, 0)
+
 			rawProposalMsgs, _ := proposal.GetMsgs()
 			for _, proposalMsg := range rawProposalMsgs {
 				var proposalMsgJsDict common.JsDict
@@ -73,6 +76,14 @@ func (ga *GovAdapter) HandleMsgEvents(ctx sdk.Context, txHash []byte, msg sdk.Ms
 				err = json.Unmarshal(proposalMsgJson, &proposalMsgJsDict)
 				proposalMsgJsDict["@type"] = sdk.MsgTypeURL(proposalMsg)
 				proposalMsgs = append(proposalMsgs, proposalMsgJsDict)
+
+				switch typedMsg := proposalMsg.(type) {
+				case *govv1types.MsgExecLegacyContent:
+					content, _ := govv1types.LegacyContentFromMessage(typedMsg)
+					types = append(types, content.ProposalType())
+				default:
+					types = append(types, sdk.MsgTypeURL(typedMsg))
+				}
 			}
 			newProposal := common.JsDict{
 				"id":               submitProposalId,
@@ -89,6 +100,11 @@ func (ga *GovAdapter) HandleMsgEvents(ctx sdk.Context, txHash []byte, msg sdk.Ms
 				"no_with_veto":     0,
 				"is_expedited":     false,
 				"resolved_height":  nil,
+				"types":            types,
+				"messages":         proposalMsgs,
+				"created_tx":       txHash,
+				"created_height":   ctx.BlockHeight(),
+				"metadata":         proposal.GetMetadata(),
 			}
 
 			if len(rawProposalMsgs) > 0 {
