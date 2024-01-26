@@ -2,6 +2,7 @@ package emitter
 
 import (
 	"encoding/json"
+	"fmt"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
@@ -79,8 +80,9 @@ func (va *ValidatorAdapter) HandleMsgEvents(ctx sdk.Context, _ []byte, msg sdk.M
 
 	if rates, ok := evMap[stakingtypes.EventTypeEditValidator+"."+stakingtypes.AttributeKeyCommissionRate]; ok {
 		for idx, _ := range rates {
-			rawValAddr := evMap[sdk.EventTypeMessage+"."+sdk.AttributeKeySender][idx]
-			valAddr, _ := sdk.ValAddressFromBech32(rawValAddr)
+			rawSigner := evMap[sdk.EventTypeMessage+"."+sdk.AttributeKeySender][idx]
+			acc, _ := sdk.AccAddressFromBech32(rawSigner)
+			valAddr := sdk.ValAddress(acc)
 			val := va.emitSetValidator(ctx, false, valAddr, kafka)
 			detail["moniker"] = val.Description.Moniker
 			detail["identity"] = val.Description.Identity
@@ -145,6 +147,7 @@ func (va *ValidatorAdapter) AfterEndBlock(ctx sdk.Context, _ abci.RequestEndBloc
 
 // emitSetValidator appends the latest validator information into the provided Kafka messages array.
 func (va *ValidatorAdapter) emitSetValidator(ctx sdk.Context, is_create_validator bool, addr sdk.ValAddress, kafka *[]common.Message) stakingtypes.Validator {
+	fmt.Println(addr.String())
 	val, found := va.keeper.GetValidator(ctx, addr)
 	if !found {
 		panic("Cannot get validator")
