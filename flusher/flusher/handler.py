@@ -276,7 +276,19 @@ class Handler(object):
         msg["transaction_id"] = self.get_transaction_id(msg["tx_hash"])
         del msg["tx_hash"]
         msg["voter"] = self.get_account_id(msg["voter"])
-        self.conn.execute(proposal_votes.insert(), msg)
+        existing_vote = self.conn.execute(
+            select([proposal_votes.c.proposal_id, proposal_votes.c.voter])
+            .where((proposal_votes.c.proposal_id == msg["proposal_id"]) & (proposal_votes.c.voter == msg["voter"]))
+        ).scalar()
+        if existing_vote is None:
+            self.conn.execute(proposal_votes.insert(), msg)
+        else:
+            self.conn.execute(
+                proposal_votes
+                .update()
+                .where((proposal_votes.c.proposal_id == msg["proposal_id"]) & (proposal_votes.c.voter == msg["voter"]))
+                .values(**msg)
+            )
 
     def handle_new_code_proposal(self, msg):
         self.conn.execute(code_proposals.insert(), msg)

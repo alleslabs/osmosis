@@ -3,7 +3,6 @@ package emitter
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -66,7 +65,6 @@ func (ga *GovAdapter) HandleMsgEvents(ctx sdk.Context, txHash []byte, msg sdk.Ms
 
 			proposalMsgs := make([]common.JsDict, 0)
 			types := make([]string, 0)
-			routes := make([]string, 0)
 
 			rawProposalMsgs, _ := proposal.GetMsgs()
 			for _, proposalMsg := range rawProposalMsgs {
@@ -83,11 +81,8 @@ func (ga *GovAdapter) HandleMsgEvents(ctx sdk.Context, txHash []byte, msg sdk.Ms
 				case *govv1types.MsgExecLegacyContent:
 					content, _ := govv1types.LegacyContentFromMessage(typedMsg)
 					types = append(types, content.ProposalType())
-					routes = append(routes, content.ProposalRoute())
 				default:
 					types = append(types, sdk.MsgTypeURL(typedMsg))
-					legacyMsg := typedMsg.(legacytx.LegacyMsg)
-					routes = append(routes, legacyMsg.Route())
 				}
 			}
 			newProposal := common.JsDict{
@@ -106,7 +101,6 @@ func (ga *GovAdapter) HandleMsgEvents(ctx sdk.Context, txHash []byte, msg sdk.Ms
 				"is_expedited":     false,
 				"resolved_height":  nil,
 				"types":            types,
-				"proposal_routes":  routes,
 				"messages":         proposalMsgs,
 				"created_tx":       txHash,
 				"created_height":   ctx.BlockHeight(),
