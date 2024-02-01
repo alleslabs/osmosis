@@ -41,7 +41,7 @@ func (va *ValidatorAdapter) AfterInitChain(ctx sdk.Context, encodingConfig param
 		for _, msg := range tx.GetMsgs() {
 			if msg, ok := msg.(*stakingtypes.MsgCreateValidator); ok {
 				valAddr, _ := sdk.ValAddressFromBech32(msg.ValidatorAddress)
-				va.emitSetValidator(ctx, valAddr, kafka)
+				va.emitSetValidator(ctx, true, valAddr, kafka)
 			}
 		}
 	}
@@ -73,7 +73,7 @@ func (va *ValidatorAdapter) HandleMsgEvents(ctx sdk.Context, _ []byte, msg sdk.M
 	if valAddrs, ok := evMap[stakingtypes.EventTypeCreateValidator+"."+stakingtypes.AttributeKeyValidator]; ok {
 		for _, rawValAddr := range valAddrs {
 			valAddr, _ := sdk.ValAddressFromBech32(rawValAddr)
-			val := va.emitSetValidator(ctx, valAddr, kafka)
+			val := va.emitSetValidator(ctx, true, valAddr, kafka)
 			detail["moniker"] = val.Description.Moniker
 			detail["identity"] = val.Description.Identity
 		}
@@ -81,9 +81,10 @@ func (va *ValidatorAdapter) HandleMsgEvents(ctx sdk.Context, _ []byte, msg sdk.M
 
 	if rates, ok := evMap[stakingtypes.EventTypeEditValidator+"."+stakingtypes.AttributeKeyCommissionRate]; ok {
 		for idx, _ := range rates {
-			rawValAddr := evMap[sdk.EventTypeMessage+"."+sdk.AttributeKeySender][idx]
-			valAddr, _ := sdk.ValAddressFromBech32(rawValAddr)
-			val := va.emitSetValidator(ctx, valAddr, kafka)
+			rawSigner := evMap[sdk.EventTypeMessage+"."+sdk.AttributeKeySender][idx]
+			acc, _ := sdk.AccAddressFromBech32(rawSigner)
+			valAddr := sdk.ValAddress(acc)
+			val := va.emitSetValidator(ctx, false, valAddr, kafka)
 			detail["moniker"] = val.Description.Moniker
 			detail["identity"] = val.Description.Identity
 		}
@@ -92,7 +93,7 @@ func (va *ValidatorAdapter) HandleMsgEvents(ctx sdk.Context, _ []byte, msg sdk.M
 	if valAddrs, ok := evMap[stakingtypes.EventTypeDelegate+"."+stakingtypes.AttributeKeyValidator]; ok {
 		for _, rawValAddr := range valAddrs {
 			valAddr, _ := sdk.ValAddressFromBech32(rawValAddr)
-			val := va.emitSetValidator(ctx, valAddr, kafka)
+			val := va.emitSetValidator(ctx, false, valAddr, kafka)
 			detail["moniker"] = val.Description.Moniker
 			detail["identity"] = val.Description.Identity
 		}
@@ -101,7 +102,7 @@ func (va *ValidatorAdapter) HandleMsgEvents(ctx sdk.Context, _ []byte, msg sdk.M
 	if valAddrs, ok := evMap[stakingtypes.EventTypeUnbond+"."+stakingtypes.AttributeKeyValidator]; ok {
 		for _, rawValAddr := range valAddrs {
 			valAddr, _ := sdk.ValAddressFromBech32(rawValAddr)
-			val := va.emitSetValidator(ctx, valAddr, kafka)
+			val := va.emitSetValidator(ctx, false, valAddr, kafka)
 			detail["moniker"] = val.Description.Moniker
 			detail["identity"] = val.Description.Identity
 		}
@@ -110,7 +111,7 @@ func (va *ValidatorAdapter) HandleMsgEvents(ctx sdk.Context, _ []byte, msg sdk.M
 	if srcValAddrs, ok := evMap[stakingtypes.EventTypeRedelegate+"."+stakingtypes.AttributeKeySrcValidator]; ok {
 		for _, rawSrcValAddr := range srcValAddrs {
 			valAddr, _ := sdk.ValAddressFromBech32(rawSrcValAddr)
-			val := va.emitSetValidator(ctx, valAddr, kafka)
+			val := va.emitSetValidator(ctx, false, valAddr, kafka)
 			detail["src_moniker"] = val.Description.Moniker
 			detail["src_identity"] = val.Description.Identity
 		}
@@ -119,7 +120,7 @@ func (va *ValidatorAdapter) HandleMsgEvents(ctx sdk.Context, _ []byte, msg sdk.M
 	if dstValAddrs, ok := evMap[stakingtypes.EventTypeRedelegate+"."+stakingtypes.AttributeKeyDstValidator]; ok {
 		for _, rawDstValAddr := range dstValAddrs {
 			valAddr, _ := sdk.ValAddressFromBech32(rawDstValAddr)
-			val := va.emitSetValidator(ctx, valAddr, kafka)
+			val := va.emitSetValidator(ctx, false, valAddr, kafka)
 			detail["dst_moniker"] = val.Description.Moniker
 			detail["dst_identity"] = val.Description.Identity
 		}
@@ -128,7 +129,7 @@ func (va *ValidatorAdapter) HandleMsgEvents(ctx sdk.Context, _ []byte, msg sdk.M
 	switch msg := msg.(type) {
 	case *slashingtypes.MsgUnjail:
 		valAddr, _ := sdk.ValAddressFromBech32(msg.ValidatorAddr)
-		val := va.emitSetValidator(ctx, valAddr, kafka)
+		val := va.emitSetValidator(ctx, false, valAddr, kafka)
 		detail["moniker"] = val.Description.Moniker
 		detail["identity"] = val.Description.Identity
 	default:
@@ -146,13 +147,14 @@ func (va *ValidatorAdapter) AfterEndBlock(ctx sdk.Context, _ abci.RequestEndBloc
 }
 
 // emitSetValidator appends the latest validator information into the provided Kafka messages array.
-func (va *ValidatorAdapter) emitSetValidator(ctx sdk.Context, addr sdk.ValAddress, kafka *[]common.Message) stakingtypes.Validator {
-	val, _ := va.keeper.GetValidator(ctx, addr)
-	pub, _ := val.ConsPubKey()
-	common.AppendMessage(kafka, "SET_VALIDATOR", common.JsDict{
+func (va *ValidatorAdapter) emitSetValidator(ctx sdk.Context, is_create_validator bool, addr sdk.ValAddress, kafka *[]common.Message) stakingtypes.Validator {
+	val, found := va.keeper.GetValidator(ctx, addr)
+	if !found {
+		panic("Cannot get validator")
+	}
+	m := common.JsDict{
 		"operator_address":      addr.String(),
 		"delegator_address":     sdk.AccAddress(addr).String(),
-		"consensus_address":     sdk.GetConsAddress(pub).String(),
 		"moniker":               val.Description.Moniker,
 		"identity":              val.Description.Identity,
 		"website":               val.Description.Website,
@@ -162,7 +164,14 @@ func (va *ValidatorAdapter) emitSetValidator(ctx sdk.Context, addr sdk.ValAddres
 		"commission_max_change": val.Commission.MaxChangeRate.String(),
 		"min_self_delegation":   val.MinSelfDelegation.String(),
 		"jailed":                val.Jailed,
-	})
+	}
+	if is_create_validator {
+		pub, err := val.GetConsAddr()
+		if err == nil {
+			m["consensus_address"] = pub.String()
+		}
+	}
+	common.AppendMessage(kafka, "SET_VALIDATOR", m)
 	return val
 }
 
