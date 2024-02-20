@@ -281,6 +281,10 @@ func (ga *GovAdapter) AfterEndBlock(ctx sdk.Context, _ abci.RequestEndBlock, evM
 					"id":              id,
 					"status":          int(proposal.Status),
 					"resolved_height": ctx.BlockHeight(),
+					"yes":             proposal.GetFinalTallyResult().GetYesCount(),
+					"no":              proposal.GetFinalTallyResult().GetNoCount(),
+					"abstain":         proposal.GetFinalTallyResult().GetAbstainCount(),
+					"no_with_veto":    proposal.GetFinalTallyResult().GetNoWithVetoCount(),
 				})
 			}
 		}
@@ -297,19 +301,19 @@ func (ga *GovAdapter) AfterEndBlock(ctx sdk.Context, _ abci.RequestEndBlock, evM
 	}
 }
 
-// flushUpdateProposalVotes appends updated governance proposals votes into the provided Kafka messages array.
-func (ga *GovAdapter) flushUpdateProposalVotes(ctx sdk.Context, kafka *[]common.Message) {
-	for proposalId := range ga.voteInBlock {
-		proposal, _ := ga.govKeeper.GetProposal(ctx, proposalId)
-		_, _, tallyResults := ga.govKeeper.Tally(ctx, proposal)
-
-		common.AppendMessage(kafka, "UPDATE_PROPOSAL", common.JsDict{
-			"id":           proposalId,
-			"yes":          tallyResults.GetYesCount(),
-			"no":           tallyResults.GetNoCount(),
-			"abstain":      tallyResults.GetAbstainCount(),
-			"no_with_veto": tallyResults.GetNoWithVetoCount(),
-		})
-	}
-	ga.voteInBlock = make(map[uint64]bool)
-}
+//// flushUpdateProposalVotes appends updated governance proposals votes into the provided Kafka messages array.
+//func (ga *GovAdapter) flushUpdateProposalVotes(ctx sdk.Context, kafka *[]common.Message) {
+//	for proposalId := range ga.voteInBlock {
+//		proposal, _ := ga.govKeeper.GetProposal(ctx, proposalId)
+//		_, _, tallyResults := ga.govKeeper.Tally(ctx, proposal)
+//
+//		common.AppendMessage(kafka, "UPDATE_PROPOSAL", common.JsDict{
+//			"id":           proposalId,
+//			"yes":          tallyResults.GetYesCount(),
+//			"no":           tallyResults.GetNoCount(),
+//			"abstain":      tallyResults.GetAbstainCount(),
+//			"no_with_veto": tallyResults.GetNoWithVetoCount(),
+//		})
+//	}
+//	ga.voteInBlock = make(map[uint64]bool)
+//}
