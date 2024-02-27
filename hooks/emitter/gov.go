@@ -285,10 +285,6 @@ func (ga *GovAdapter) AfterEndBlock(ctx sdk.Context, _ abci.RequestEndBlock, evM
 					"abstain":         proposal.GetFinalTallyResult().GetAbstainCount(),
 					"no_with_veto":    proposal.GetFinalTallyResult().GetNoWithVetoCount(),
 					"resolved_height": ctx.BlockHeight(),
-					"yes":             proposal.GetFinalTallyResult().GetYesCount(),
-					"no":              proposal.GetFinalTallyResult().GetNoCount(),
-					"abstain":         proposal.GetFinalTallyResult().GetAbstainCount(),
-					"no_with_veto":    proposal.GetFinalTallyResult().GetNoWithVetoCount(),
 				})
 			}
 		}
